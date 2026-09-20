@@ -50,7 +50,7 @@ Invoke-LoggedNative -Executable $csc -Arguments @("@$rsp") -LogPath (Join-Path $
 if (-not (Test-Path -LiteralPath $stagedDll -PathType Leaf)) { throw 'Aucune nouvelle DLL produite.' }
 # Read assembly metadata, without executing the plugin or faking SimHub assemblies.
 $assembly = [System.Reflection.AssemblyName]::GetAssemblyName($stagedDll)
-if ($assembly.Name -ne 'DIYAmbient.Plugin' -or $assembly.Version.ToString() -ne '0.1.1.0') { throw 'Identite/version de DLL inattendue.' }
+if ($assembly.Name -ne 'DIYAmbient.Plugin' -or $assembly.Version.ToString() -ne '0.2.0.0') { throw 'Identite/version de DLL inattendue.' }
 Move-Item -LiteralPath $stagedDll -Destination $dll -Force
 $sourceHashes = @($sources | ForEach-Object { @{ file=$_.FullName.Substring($root.Length + 1); sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash } })
 @{ status='compiled-not-hardware-validated'; utc=[DateTime]::UtcNow.ToString('o'); version=$assembly.Version.ToString();
@@ -71,7 +71,7 @@ if ($Install) {
         if (Get-Process -Name 'SimHubWPF', 'SimHub' -ErrorAction SilentlyContinue) { throw 'SimHub vient de demarrer : installation annulee.' }
         Move-Item -LiteralPath $pending -Destination $destination -Force
     } finally { Remove-Item -LiteralPath $pending -Force -ErrorAction SilentlyContinue }
-    Write-Host 'Plugin copie. Relancer SimHub. Premiere utilisation : OFF et apercu. Aucun firmware modifie.'
+    Write-Host 'Plugin copie. Relancer SimHub. Premiere utilisation : OFF. Aucun firmware modifie.'
 } else {
     Write-Host 'Aucune installation automatique. Copier uniquement cette DLL dans SimHub ferme, ou utiliser -Install.'
 }

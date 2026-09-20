@@ -11,8 +11,8 @@ CHANNEL = 0.020
 COUNT = 60
 
 
-def modeled_current(frame):
-    return len(frame) * IDLE + CHANNEL * sum(sum(pixel) for pixel in frame) / 255
+def modeled_current(frame, strips=1):
+    return strips * (len(frame) * IDLE + CHANNEL * sum(sum(pixel) for pixel in frame) / 255)
 
 
 def old_limit(frame, budget=0.5, brightness=1):
@@ -21,8 +21,8 @@ def old_limit(frame, budget=0.5, brightness=1):
     return [tuple(math.floor(channel * gain * brightness) for channel in pixel) for pixel in frame]
 
 
-def fixed_limit(frame, budget=0.5, brightness=1):
-    gain = min(1, max(0, budget - COUNT * IDLE) / (COUNT * 3 * CHANNEL))
+def fixed_limit(frame, budget=0.5, brightness=1, strips=1):
+    gain = min(1, max(0, budget - COUNT * strips * IDLE) / (COUNT * strips * 3 * CHANNEL))
     return [tuple(math.floor(channel * gain * brightness) for channel in pixel) for pixel in frame]
 
 
@@ -59,6 +59,15 @@ class ReferenceModels(unittest.TestCase):
             samples = [fixed_limit([(255, 255, 255)] * 60, budget, i / 100)[0][0] for i in range(101)]
             self.assertEqual(samples, sorted(samples))
             self.assertEqual(samples[0], 0)
+
+    def test_three_or_five_strips_respect_15_amp_supply(self):
+        frame = [(255, 255, 255)] * 60
+        three = fixed_limit(frame, 15, 1, 3)
+        five = fixed_limit(frame, 15, 1, 5)
+        self.assertEqual(three[0], (255, 255, 255))
+        self.assertLess(five[0][0], 255)
+        self.assertLessEqual(modeled_current(three, 3), 15)
+        self.assertLessEqual(modeled_current(five, 5), 15)
 
     def test_white_preset_channels_never_overdrive(self):
         for wi in range(-50, 51):

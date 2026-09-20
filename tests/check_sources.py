@@ -92,11 +92,16 @@ class SourceChecks(unittest.TestCase):
                 self.assertLessEqual(zone[origin] + zone[size], 1.0000001)
 
     def test_safe_defaults_in_example_and_sources(self):
-        self.assertTrue(self.settings['PreviewOnly'])
-        self.assertFalse(self.settings['ElectricalConfirmed'])
+        self.assertFalse(self.settings['PreviewOnly'])
+        self.assertTrue(self.settings['ElectricalConfirmed'])
+        self.assertFalse(self.settings['KeepOnAfterExit'])
+        self.assertTrue(self.settings['StartEnabled'])
+        self.assertTrue(self.settings['StartEnabledPreferenceInitialized'])
+        self.assertEqual(self.settings['LedStripCount'], 3)
+        self.assertEqual(self.settings['CurrentBudgetAmps'], 15.0)
         self.assertEqual(self.settings['TelemetryLedCount'], 0)
         source = (ROOT / 'src/DIYAmbient.Core/Settings.cs').read_text()
-        for fragment in ('PreviewOnly = true', 'ElectricalConfirmed = false', 'TelemetryLedCount = 0'):
+        for fragment in ('PreviewOnly = false', 'ElectricalConfirmed = true', 'CurrentBudgetAmps = 15.0', 'KeepOnAfterExit = false', 'LedStripCount = 3', 'StartEnabled = true', 'StartEnabledPreferenceInitialized = true', 'TelemetryLedCount = 0'):
             self.assertIn(fragment, source)
         engine = (ROOT / 'src/DIYAmbient.Plugin/AmbientEngine.cs').read_text()
         self.assertIn('new EngineState(settings.Clone(), false, false, 0)', engine)
@@ -133,19 +138,27 @@ class SourceChecks(unittest.TestCase):
 
     def test_no_external_runtime_or_network_client_in_sources(self):
         source = '\n'.join(f.read_text() for f in (ROOT / 'src').rglob('*.cs'))
-        for forbidden in ('Process.Start(', 'new HttpClient(', 'new WebClient(', 'Socket(', 'TcpListener('):
+        for forbidden in ('new HttpClient(', 'new WebClient(', 'Socket(', 'TcpListener('):
             self.assertNotIn(forbidden, source)
+        self.assertEqual(source.count('Process.Start('), 1)
+        self.assertIn('https://www.youtube.com/@realisticsimcockpit', source)
+
+    def test_evo_branding_is_visible_in_simhub_and_settings(self):
+        plugin = (ROOT / 'src/DIYAmbient.Plugin/Plugin.cs').read_text()
+        settings = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
+        self.assertIn('[PluginName("DIY Ambient light EVO")]', plugin)
+        self.assertIn('DIY Ambient light EVO by REALISTIC SIMCOCKPIT', settings)
 
     def test_csharp_scenarios_provided_but_not_run_here(self):
         source = (ROOT / 'tests/CoreTests.cs').read_text()
-        self.assertEqual(len(re.findall(r'\bTest\("', source)), 53)
+        self.assertEqual(len(re.findall(r'\bTest\("', source)), 60)
 
     def test_white_balance_is_not_a_global_screen_filter(self):
         source = (ROOT / 'src/DIYAmbient.Core/FrameComposer.cs').read_text()
         output = source.split('public static FrameResult ApplyOutputLimits', 1)[1].split('public static double Estimate', 1)[0]
         self.assertNotIn('s.Warmth', output)
         self.assertNotIn('s.Tint', output)
-        self.assertIn('Settings.LedCount * 3 * ChannelAmps', output)
+        self.assertIn('Settings.LedCount * s.LedStripCount * 3 * ChannelAmps', output)
         self.assertNotIn('Estimate(input)', output)
 
     def test_capture_uses_per_display_native_context_and_flush(self):
@@ -163,15 +176,11 @@ class SourceChecks(unittest.TestCase):
         self.assertIn('Monitor.TryEnter(OutputOwner', source)
         self.assertNotIn('Thread.Abort(', source)
 
-    def test_white_preview_is_separate_from_saved_settings(self):
+    def test_white_controls_are_inline_and_saved_normally(self):
         source = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
-        self.assertIn('plugin.PreviewSettings(trial)', source)
-        self.assertIn('trial.TelemetryLedCount = 0', source)
-        self.assertIn('chosen.Warmth = trial.Warmth; chosen.Tint = trial.Tint;', source)
-        self.assertNotIn('Storage.Save(plugin.GetSettings())', source)
-        plugin = (ROOT / 'src/DIYAmbient.Plugin/Plugin.cs').read_text()
-        self.assertIn('private Settings normalSettings', plugin)
-        self.assertIn('Storage.Save(normalSettings)', plugin)
+        self.assertIn('whiteControls', source)
+        self.assertIn('s.Warmth = warmth.Value; s.Tint = tint.Value;', source)
+        self.assertNotIn('Ajuster mon blanc', source)
 
     def test_build_cleans_stale_outputs_and_uses_staging(self):
         source = (ROOT / 'scripts/Build.ps1').read_text(encoding='utf-8-sig')
@@ -194,10 +203,56 @@ class SourceChecks(unittest.TestCase):
         self.assertIn('number != 0 && number != 1', source)
         self.assertIn('GetIndexParameters().Length == 0', source)
 
-    def test_new_electrical_values_invalidate_confirmation(self):
-        source = (ROOT / 'src/DIYAmbient.Plugin/ConfigurationWindow.cs').read_text()
-        self.assertIn('budget.TextChanged += (s, e) => confirmed.IsChecked = false', source)
-        self.assertIn('port.SelectionChanged += (s, e) => confirmed.IsChecked = false', source)
+    def test_simple_ui_uses_fixed_maximum_power(self):
+        source = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
+        self.assertNotIn('Budget (A)', source)
+        self.assertNotIn('Alimentation et câblage vérifiés', source)
+        self.assertIn('next.CurrentBudgetAmps = 15.0', source)
+        self.assertIn('3 × 60 LED — 180 LED', source)
+        self.assertIn('5 × 60 LED — 300 LED', source)
+
+    def test_settings_are_single_panel_with_solid_palette(self):
+        source = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
+        self.assertGreaterEqual(source.count('AddSwatch(palette,'), 10)
+        self.assertNotIn('Foreground = Brushes.Black', source)
+        self.assertNotIn('Mode simulation', source)
+        self.assertNotIn('Tester gauche', source)
+        self.assertNotIn('Aperçu de la sortie', source)
+        self.assertNotIn('Courant modélisé', source)
+        self.assertIn('Garder la dernière couleur après fermeture', source)
+        self.assertIn('Enregistrer la connexion et les écrans', source)
+
+    def test_shutdown_option_controls_final_black_frame(self):
+        engine = (ROOT / 'src/DIYAmbient.Plugin/AmbientEngine.cs').read_text()
+        self.assertIn('keepOnAfterExit = state.Settings.KeepOnAfterExit', engine)
+        self.assertIn('Disconnect(!keepOnAfterExit)', engine)
+        self.assertIn('Disconnect(true)', engine)
+
+    def test_saved_enabled_state_profiles_and_yellow_test(self):
+        settings = (ROOT / 'src/DIYAmbient.Core/Settings.cs').read_text()
+        plugin = (ROOT / 'src/DIYAmbient.Plugin/Plugin.cs').read_text()
+        ui = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
+        engine = (ROOT / 'src/DIYAmbient.Plugin/AmbientEngine.cs').read_text()
+        self.assertIn('StartEnabled', settings)
+        self.assertIn('if (settings.StartEnabled)', plugin)
+        self.assertIn('s.StartEnabled = enabled', plugin)
+        self.assertIn('Profiles.TryLoad(gameName', plugin)
+        self.assertIn('data.GameName', plugin)
+        self.assertIn('Configurer les zones', ui)
+        self.assertIn('Tester drapeau jaune', ui)
+        self.assertIn('TestYellowFlag', engine)
+        self.assertIn('SendStartupBlackout', engine)
+        self.assertIn('XmlLanguage.GetLanguage("fr-FR")', ui)
+
+    def test_wled_style_animations_are_integrated_without_network_runtime(self):
+        settings = (ROOT / 'src/DIYAmbient.Core/Settings.cs').read_text()
+        effects = (ROOT / 'src/DIYAmbient.Core/AnimatedEffects.cs').read_text()
+        ui = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
+        self.assertIn('LightingMode { White, Solid, Screen, Animation }', settings)
+        for name in ('Blink', 'Breathe', 'Wipe', 'Scan', 'Colorloop', 'Rainbow', 'Theater', 'Chase', 'Twinkle', 'FireFlicker'):
+            self.assertIn(name, effects)
+        self.assertIn('Animations inspirées de WLED', ui)
+        self.assertIn('AnimationSpeed', ui)
 
 
 if __name__ == '__main__':

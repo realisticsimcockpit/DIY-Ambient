@@ -30,11 +30,11 @@ namespace DIYAmbient.Plugin
     }
     internal sealed class TestRequest
     {
-        public readonly bool Left, Right;
+        public readonly bool Left, Right, Yellow;
         public readonly int IdentifyLed;
         private readonly Stopwatch elapsed = Stopwatch.StartNew();
-        public TestRequest(bool left, bool right, int id)
-        { Left = left; Right = right; IdentifyLed = id; }
+        public TestRequest(bool left, bool right, int id, bool yellow)
+        { Left = left; Right = right; IdentifyLed = id; Yellow = yellow; }
         public bool Active { get { return elapsed.ElapsedMilliseconds < 3000; } }
     }
 
@@ -56,10 +56,13 @@ namespace DIYAmbient.Plugin
         private SerialPort serial; // Only the output worker may access this object.
         private Stopwatch retryDelay;
         private bool disposed;
+        private volatile bool keepOnAfterExit;
+        private volatile bool startupBlackoutPending;
 
         public AmbientEngine(Settings settings)
         {
             settings.Validate(); state = new EngineState(settings.Clone(), false, false, 0);
+            startupBlackoutPending = !settings.StartEnabled && !string.IsNullOrWhiteSpace(settings.SerialPort);
             captureTask = Task.Factory.StartNew(CaptureLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
             outputTask = Task.Factory.StartNew(OutputLoop, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
@@ -90,6 +93,7 @@ namespace DIYAmbient.Plugin
                 state = new EngineState(copy, state.Enabled && !disarm, state.Editing, version);
                 if (invalidate) captured = null;
                 if (disarm) { test = null; lastFrame = new FrameResult(new Rgb[60], .06, 1); }
+                if (!state.Enabled && !string.IsNullOrWhiteSpace(copy.SerialPort)) startupBlackoutPending = true;
             }
         }
         public void SetEnabled(bool enabled)
@@ -98,8 +102,8 @@ namespace DIYAmbient.Plugin
             {
                 EnsureActive();
                 Settings s = state.Settings;
-                if (enabled && !s.PreviewOnly && (!s.ElectricalConfirmed || string.IsNullOrWhiteSpace(s.SerialPort)))
-                    throw new InvalidOperationException("Vérifier le budget électrique et sélectionner le port avant l'envoi réel.");
+                if (enabled && string.IsNullOrWhiteSpace(s.SerialPort))
+                    throw new InvalidOperationException("Sélectionner le port avant d'activer l'éclairage.");
                 if (enabled == state.Enabled) return;
                 state = new EngineState(s, enabled, state.Editing, state.CaptureVersion + 1);
                 captured = null; test = null;
@@ -127,10 +131,20 @@ namespace DIYAmbient.Plugin
                 if (identifyLed < 0 || identifyLed > Settings.LedCount) throw new ArgumentException("Numéro de LED invalide.");
                 if (identifyLed == 0 && state.Settings.TelemetryLedCount == 0)
                     throw new InvalidOperationException("Choisir au moins 2 LED de télémétrie avant ce test.");
-                test = new TestRequest(left, right, identifyLed);
+                test = new TestRequest(left, right, identifyLed, false);
             }
         }
-        private void EnsureActive() { if (disposed) throw new ObjectDisposedException("DIY-Ambient"); }
+        public void TestYellowFlag()
+        {
+            lock (gate)
+            {
+                EnsureActive();
+                if (!state.Enabled) throw new InvalidOperationException("Activer l'éclairage avant le test.");
+                if (state.Settings.TelemetryLedCount == 0) throw new InvalidOperationException("Choisir au moins 2 LED de télémétrie.");
+                test = new TestRequest(false, false, 0, true);
+            }
+        }
+        private void EnsureActive() { if (disposed) throw new ObjectDisposedException("DIY Ambient light EVO"); }
 
         private static void CloseCapture(ref ScreenCapture capture)
         {
@@ -195,7 +209,7 @@ namespace DIYAmbient.Plugin
             }
             finally
             {
-                if (ownsOutput) { try { Disconnect(true); } finally { Monitor.Exit(OutputOwner); } }
+                if (ownsOutput) { try { Disconnect(!keepOnAfterExit); } finally { Monitor.Exit(OutputOwner); } }
             }
         }
 
@@ -203,6 +217,13 @@ namespace DIYAmbient.Plugin
         {
             EngineState current = state;
             Settings s = current.Settings;
+            if (startupBlackoutPending && !current.Enabled && !string.IsNullOrWhiteSpace(s.SerialPort))
+            {
+                if (serial != null) { Disconnect(true); startupBlackoutPending = false; status = "Éteint — contrôleur remis au noir"; return; }
+                if (retryDelay != null && retryDelay.ElapsedMilliseconds < 3000) return;
+                SendStartupBlackout(s.SerialPort); startupBlackoutPending = false;
+                status = "Éteint — contrôleur remis au noir"; return;
+            }
             DateTime now = DateTime.UtcNow;
             CapturedFrame image = captured;
             Rgb[] pixels = image != null && OutputPolicy.CanUseCapture(current.CaptureVersion, image.Version,
@@ -211,7 +232,7 @@ namespace DIYAmbient.Plugin
             bool testing = request != null && request.Active;
             bool identifying = testing && request.IdentifyLed > 0;
             bool enabled = current.Enabled && (!current.Editing || identifying);
-            TelemetrySnapshot t = testing ? new TelemetrySnapshot(true, request.Left, request.Right, false, false, now) : telemetry;
+            TelemetrySnapshot t = testing ? new TelemetrySnapshot(true, request.Left, request.Right, request.Yellow, false, now) : telemetry;
             FrameResult frame = FrameComposer.Compose(s, enabled, pixels, t, current.Selection, now,
                 identifying ? request.IdentifyLed : 0);
             lock (gate)
@@ -225,8 +246,8 @@ namespace DIYAmbient.Plugin
                 status = !current.Enabled ? "Éteint — aucun port ouvert" : "Aperçu uniquement — aucun envoi au matériel";
                 return;
             }
-            if (!s.ElectricalConfirmed || string.IsNullOrWhiteSpace(s.SerialPort))
-            { Disconnect(true); status = "Envoi bloqué : vérifier alimentation et port."; return; }
+            if (string.IsNullOrWhiteSpace(s.SerialPort))
+            { Disconnect(true); status = "Envoi bloqué : sélectionner le port."; return; }
             if (serial != null && !string.Equals(serial.PortName, s.SerialPort, StringComparison.OrdinalIgnoreCase)) Disconnect(true);
             // Pause the lighting while editing, but keep an existing port instead of
             // repeatedly resetting the Arduino (and its uncontrolled startup RGB flashes).
@@ -253,7 +274,7 @@ namespace DIYAmbient.Plugin
         {
             EngineState current = state;
             return !stop.IsCancellationRequested && current.Enabled && !current.Settings.PreviewOnly &&
-                current.Settings.ElectricalConfirmed && string.Equals(current.Settings.SerialPort, portName, StringComparison.OrdinalIgnoreCase);
+                string.Equals(current.Settings.SerialPort, portName, StringComparison.OrdinalIgnoreCase);
         }
         private bool WaitForController(string portName, int milliseconds)
         {
@@ -284,6 +305,21 @@ namespace DIYAmbient.Plugin
             serial.Write(black, 0, black.Length);
             if (!WaitForController(portName, 34)) Disconnect(true);
             retryDelay = null;
+        }
+
+        private void SendStartupBlackout(string portName)
+        {
+            serial = new SerialPort(portName, AdalightProtocol.BaudRate, Parity.None, 8, StopBits.One);
+            serial.Handshake = Handshake.None; serial.DtrEnable = false; serial.RtsEnable = false;
+            serial.ReadTimeout = 100; serial.WriteTimeout = 250; serial.Open();
+            if (stop.Token.WaitHandle.WaitOne(2200)) { Disconnect(false); return; }
+            serial.DiscardInBuffer();
+            byte[] zeros = new byte[AdalightProtocol.PacketLength]; serial.Write(zeros, 0, zeros.Length);
+            if (stop.Token.WaitHandle.WaitOne(34)) { Disconnect(false); return; }
+            byte[] black = AdalightProtocol.Encode(new Rgb[60]); serial.Write(black, 0, black.Length);
+            var elapsed = Stopwatch.StartNew();
+            while (elapsed.ElapsedMilliseconds < 150 && serial.BytesToWrite > 0) Thread.Sleep(4);
+            Disconnect(false); retryDelay = null;
         }
 
         private void Disconnect(bool black)
@@ -319,6 +355,7 @@ namespace DIYAmbient.Plugin
             {
                 if (disposed) return;
                 disposed = true;
+                keepOnAfterExit = state.Settings.KeepOnAfterExit;
                 state = new EngineState(state.Settings, false, false, state.CaptureVersion + 1);
                 test = null; captured = null; telemetry = TelemetrySnapshot.Empty;
             }

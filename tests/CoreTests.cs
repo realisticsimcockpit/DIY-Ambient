@@ -23,10 +23,12 @@ internal static class CoreTests
         Check(rejected, "Invalid configuration was accepted");
     }
     private static Settings Full()
-    { var s = new Settings(); s.Brightness = 1; s.CurrentBudgetAmps = 5; return s; }
+    { var s = new Settings(); s.Brightness = 1; s.CurrentBudgetAmps = 15; return s; }
     private static Rgb[] Fill(Rgb color) { return Enumerable.Repeat(color, 60).ToArray(); }
     private static FrameResult Compose(Settings s, bool enabled, TelemetrySnapshot t)
     { return FrameComposer.Compose(s, enabled, null, t, new TelemetrySelection(s), DateTime.UtcNow, 0); }
+    private static FrameResult ComposeAt(Settings s, DateTime now, TelemetrySnapshot t)
+    { return FrameComposer.Compose(s, true, null, t, new TelemetrySelection(s), now, 0); }
 
     private enum UnknownFlag { NamedTwo = 2 }
     private sealed class Flags
@@ -44,8 +46,9 @@ internal static class CoreTests
     {
         try
         {
-            Test("Default settings validate and remain preview-only", () => {
-                var s = new Settings(); s.Validate(); Check(s.PreviewOnly && !s.ElectricalConfirmed, "Unsafe defaults");
+            Test("Default settings validate at maximum software power", () => {
+                var s = new Settings(); s.Validate(); Check(!s.PreviewOnly && s.ElectricalConfirmed, "Unexpected output mode");
+                Check(s.CurrentBudgetAmps == 15.0 && s.LedStripCount == 3 && !s.KeepOnAfterExit && s.StartEnabled && s.StartEnabledPreferenceInitialized, "Unexpected power or shutdown default");
                 Equal(s.TelemetryLedCount, 0, "Default telemetry");
             });
             Test("Existing display ranges", () => {
@@ -64,6 +67,7 @@ internal static class CoreTests
             });
             Test("Odd telemetry counts rejected", () => { var s = new Settings(); s.TelemetryLedCount = 11; Reject(s.Validate); });
             Test("Out-of-range telemetry rejected", () => { var s = new Settings(); s.TelemetryLedCount = 62; Reject(s.Validate); });
+            Test("Invalid animation controls rejected", () => { var s = new Settings(); s.AnimationSpeed = 0; Reject(s.Validate); });
             Test("Bad display overlap rejected", () => { var s = new Settings(); s.Displays[0].LastLed = 21; Reject(s.Validate); });
             Test("Duplicate LED rejected", () => { var s = new Settings(); s.Zones[1].Led = 1; Reject(s.Validate); });
             Test("Out-of-screen rectangle rejected", () => { var s = new Settings(); s.Zones[0].X = .99; Reject(s.Validate); });
@@ -71,10 +75,13 @@ internal static class CoreTests
             Test("Unknown schema rejected", () => { var s = new Settings(); s.SchemaVersion = 2; Reject(s.Validate); });
             Test("Clone is independent", () => { var a = new Settings(); var b = a.Clone(); b.Zones[0].X = .5; Check(a.Zones[0].X == 0, "Aliased zones"); });
             Test("Configuration JSON roundtrip", () => {
-                var s = new Settings(); var serializer = new DataContractJsonSerializer(typeof(Settings));
+                var s = new Settings(); s.KeepOnAfterExit = true; s.StartEnabled = true; var serializer = new DataContractJsonSerializer(typeof(Settings));
                 using (var stream = new MemoryStream()) {
                     serializer.WriteObject(stream, s); stream.Position = 0;
                     var result = (Settings)serializer.ReadObject(stream); result.Validate(); Equal(result.Zones.Count, 60, "Roundtrip");
+                    Check(result.KeepOnAfterExit, "Shutdown option lost");
+                    Check(result.StartEnabled, "Startup state lost");
+                    Check(result.AnimationEffect == AnimationEffect.Colorloop && result.AnimationSpeed == 128 && result.AnimationIntensity == 128, "Animation settings lost");
                 }
             });
             Test("Adalight header / RGB order / 186 bytes", () => {
@@ -115,6 +122,46 @@ internal static class CoreTests
                 Check(Compose(s, true, t).EstimatedAmps <= .50000001, "Alert exceeds estimate");
                 Check(Compose(s, true, TelemetrySnapshot.Empty).EstimatedAmps <= .50000001, "White exceeds estimate");
             });
+            Test("Strip choices stay within the 15 amp supply", () => {
+                var s = Full();
+                s.LedStripCount = 3;
+                var three = Compose(s, true, TelemetrySnapshot.Empty);
+                Check(three.EstimatedAmps <= 15 && three.PowerScale == 1, "Three strips were unnecessarily limited");
+                s.LedStripCount = 5;
+                var five = Compose(s, true, TelemetrySnapshot.Empty);
+                Check(five.EstimatedAmps <= 15.00000001 && five.PowerScale < 1, "Five strips exceeded supply or were not limited");
+            });
+            Test("Every animation produces exactly 60 powered-safe pixels", () => {
+                var s = Full(); s.Mode = LightingMode.Animation; s.LedStripCount = 5;
+                foreach (AnimationEffect effect in Enum.GetValues(typeof(AnimationEffect))) {
+                    s.AnimationEffect = effect;
+                    var f = ComposeAt(s, new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc), TelemetrySnapshot.Empty);
+                    Equal(f.Colors.Length, 60, effect + " count"); Check(f.EstimatedAmps <= 15.00000001, effect + " budget");
+                }
+            });
+            Test("Rainbow animation is spatially distributed", () => {
+                var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Rainbow;
+                var f = ComposeAt(s, new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc), TelemetrySnapshot.Empty);
+                Check(f.Colors.Select(c => c.ToString()).Distinct().Count() > 8, "Rainbow is uniform");
+            });
+            Test("Colorloop changes with time", () => {
+                var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Colorloop;
+                DateTime a = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                Check(ComposeAt(s, a, TelemetrySnapshot.Empty).Colors[0].ToString() != ComposeAt(s, a.AddSeconds(2), TelemetrySnapshot.Empty).Colors[0].ToString(), "Colorloop is frozen");
+            });
+            Test("Telemetry overrides an animated background only on selected LEDs", () => {
+                var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Rainbow; s.TelemetryLedCount = 10;
+                DateTime now = DateTime.UtcNow; var background = ComposeAt(s, now, TelemetrySnapshot.Empty);
+                var alert = ComposeAt(s, now, new TelemetrySnapshot(true, true, false, false, false, now));
+                var selected = new TelemetrySelection(s).Left;
+                Check(selected.All(i => alert.Colors[i - 1].R == 255 && alert.Colors[i - 1].G == 0), "Alert missing");
+                for (int i = 0; i < 60; i++) if (!selected.Contains(i + 1)) Check(alert.Colors[i].ToString() == background.Colors[i].ToString(), "Background changed");
+            });
+            Test("Yellow flag paints exactly the selected telemetry LEDs", () => {
+                var s = Full(); s.TelemetryLedCount = 10;
+                var yellow = Compose(s, true, new TelemetrySnapshot(true, false, false, true, false, DateTime.UtcNow));
+                Equal(yellow.Colors.Count(c => c.R == 255 && c.G == 160 && c.B == 0), 10, "Yellow LEDs");
+            });
             Test("Brightness remains effective below a limited maximum", () => {
                 var s = Full(); s.CurrentBudgetAmps = .5;
                 var max = Compose(s, true, TelemetrySnapshot.Empty); s.Brightness = .5;
@@ -124,7 +171,7 @@ internal static class CoreTests
             Test("Random frame current estimates never exceed budget", () => {
                 var rng = new Random(403); var s = Full();
                 for (int round = 0; round < 1000; round++) {
-                    s.CurrentBudgetAmps = .06 + rng.NextDouble() * 2; s.Brightness = rng.NextDouble();
+                    s.CurrentBudgetAmps = .18 + rng.NextDouble() * 14.82; s.Brightness = rng.NextDouble();
                     s.Warmth = rng.NextDouble() * 2 - 1; s.Tint = rng.NextDouble() * 2 - 1;
                     var input = new Rgb[60];
                     for (int i = 0; i < 60; i++) input[i] = new Rgb((byte)rng.Next(256), (byte)rng.Next(256), (byte)rng.Next(256));
@@ -211,8 +258,8 @@ internal static class CoreTests
                 b.Mode = LightingMode.Screen; Check(!OutputPolicy.HardwareChanged(a, b), "Mode treated as wiring change");
                 b.CurrentBudgetAmps = .5; Check(OutputPolicy.HardwareChanged(a, b), "Budget not disarmed");
                 b = a.Clone(); b.SerialPort = "COM3"; Check(OutputPolicy.HardwareChanged(a, b), "Port not disarmed");
-                b = a.Clone(); b.PreviewOnly = false; Check(OutputPolicy.HardwareChanged(a, b), "Preview transition not disarmed");
-                b = a.Clone(); b.ElectricalConfirmed = true; Check(OutputPolicy.HardwareChanged(a, b), "Confirmation change ignored");
+                b = a.Clone(); b.PreviewOnly = true; Check(OutputPolicy.HardwareChanged(a, b), "Preview transition not disarmed");
+                b = a.Clone(); b.ElectricalConfirmed = false; Check(OutputPolicy.HardwareChanged(a, b), "Confirmation change ignored");
             });
             Test("Port comparison is case-insensitive", () => {
                 var a = Full(); a.SerialPort = "COM3"; var b = a.Clone(); b.SerialPort = "com3";

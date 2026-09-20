@@ -6,7 +6,8 @@ using System.Text.RegularExpressions;
 
 namespace DIYAmbient.Core
 {
-    public enum LightingMode { White, Solid, Screen }
+    public enum LightingMode { White, Solid, Screen, Animation }
+    public enum AnimationEffect { Blink, Breathe, Wipe, Scan, Colorloop, Rainbow, Theater, Chase, Twinkle, FireFlicker }
 
     [DataContract]
     public sealed class DisplayMap
@@ -38,12 +39,19 @@ namespace DIYAmbient.Core
         [DataMember(IsRequired = true)] public string SerialPort;
         [DataMember(IsRequired = true)] public bool PreviewOnly;
         [DataMember(IsRequired = true)] public bool ElectricalConfirmed;
+        [DataMember(IsRequired = false)] public bool KeepOnAfterExit;
+        [DataMember(IsRequired = false)] public int LedStripCount;
+        [DataMember(IsRequired = false)] public bool StartEnabled;
+        [DataMember(IsRequired = false)] public bool StartEnabledPreferenceInitialized;
         [DataMember(IsRequired = true)] public LightingMode Mode;
         [DataMember(IsRequired = true)] public double Brightness;
         [DataMember(IsRequired = true)] public int TelemetryLedCount;
         [DataMember(IsRequired = true)] public byte SolidR;
         [DataMember(IsRequired = true)] public byte SolidG;
         [DataMember(IsRequired = true)] public byte SolidB;
+        [DataMember(IsRequired = false)] public AnimationEffect AnimationEffect;
+        [DataMember(IsRequired = false)] public int AnimationSpeed;
+        [DataMember(IsRequired = false)] public int AnimationIntensity;
         [DataMember(IsRequired = true)] public double Warmth;
         [DataMember(IsRequired = true)] public double Tint;
         [DataMember(IsRequired = true)] public double CurrentBudgetAmps;
@@ -52,12 +60,15 @@ namespace DIYAmbient.Core
 
         public Settings()
         {
-            SchemaVersion = 1; SerialPort = ""; PreviewOnly = true;
-            ElectricalConfirmed = false; Mode = LightingMode.White; Brightness = 0.25;
+            SchemaVersion = 1; SerialPort = ""; PreviewOnly = false;
+            ElectricalConfirmed = true; KeepOnAfterExit = false; LedStripCount = 3;
+            StartEnabled = true; StartEnabledPreferenceInitialized = true;
+            Mode = LightingMode.White; Brightness = 0.25;
             TelemetryLedCount = 0; SolidR = 255; SolidG = 180; SolidB = 90;
+            AnimationEffect = AnimationEffect.Colorloop; AnimationSpeed = 128; AnimationIntensity = 128;
             Warmth = 0; Tint = 0;
             // Provisional budget, NOT a certified safe rating for unknown wiring.
-            CurrentBudgetAmps = 0.5;
+            CurrentBudgetAmps = 15.0;
             Displays = new List<DisplayMap> {
                 new DisplayMap { DeviceName = @"\\.\DISPLAY2", Position = -1, FirstLed = 1, LastLed = 20 },
                 new DisplayMap { DeviceName = @"\\.\DISPLAY1", Position = 0, FirstLed = 21, LastLed = 40 },
@@ -83,6 +94,15 @@ namespace DIYAmbient.Core
             }
         }
 
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            // Configurations created before the strip selector represent the 3-strip installation.
+            if (LedStripCount == 0) LedStripCount = 3;
+            if (AnimationSpeed == 0) AnimationSpeed = 128;
+            if (AnimationIntensity == 0) AnimationIntensity = 128;
+        }
+
         public Settings Clone()
         {
             Settings s = (Settings)MemberwiseClone();
@@ -95,10 +115,14 @@ namespace DIYAmbient.Core
         {
             Require(SchemaVersion == 1, "Version de configuration inconnue.");
             Require(Enum.IsDefined(typeof(LightingMode), Mode), "Mode inconnu.");
+            Require(Enum.IsDefined(typeof(AnimationEffect), AnimationEffect), "Animation inconnue.");
+            Require(AnimationSpeed >= 1 && AnimationSpeed <= 255, "Vitesse d'animation invalide.");
+            Require(AnimationIntensity >= 1 && AnimationIntensity <= 255, "Intensité d'animation invalide.");
             Range(Brightness, 0, 1, "Luminosité");
             Range(Warmth, -1, 1, "Température visuelle");
             Range(Tint, -1, 1, "Teinte du blanc");
-            Range(CurrentBudgetAmps, .060, 5, "Budget estimé du ruban (A)");
+            Range(CurrentBudgetAmps, .060, 15, "Budget estimé du ruban (A)");
+            Require(LedStripCount == 3 || LedStripCount == 5, "Choisir 3 ou 5 bandes de 60 LED.");
             Require(TelemetryLedCount >= 0 && TelemetryLedCount <= 60 && TelemetryLedCount % 2 == 0,
                 "Le nombre de LED de télémétrie doit être pair, entre 0 et 60.");
             Require(Displays != null && Displays.Count == 3 && Displays.All(d => d != null), "Trois écrans requis.");

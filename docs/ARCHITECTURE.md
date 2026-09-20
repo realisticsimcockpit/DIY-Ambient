@@ -67,6 +67,6 @@ Après ouverture : attente de démarrage puis 186 octets nuls et une trame noire
 
 ## Réglages et compilation
 
-Configuration canonique séparée de l'aperçu temporaire du blanc : les sauvegardes différées, l'annulation et la fermeture ne doivent pas persister un essai. JSON enregistré atomiquement avec sauvegarde ; défaut OFF, première utilisation en aperçu. Changer les paramètres électriques retire la confirmation utilisateur.
+Configuration canonique séparée de l'aperçu temporaire du blanc : les sauvegardes différées, l'annulation et la fermeture ne doivent pas persister un essai. JSON enregistré atomiquement avec sauvegarde ; défaut OFF et confirmation électrique obligatoire. Changer les paramètres électriques retire la confirmation utilisateur.
 
 C# 5 / .NET Framework 4.8. Le script efface les anciennes sorties locales avant contrôle, exécute les tests C#, compile dans une zone intermédiaire, vérifie l'identité de l'assembly et produit un manifeste. Aucune DLL SimHub copiée dans la livraison ; installation uniquement sur demande explicite, SimHub fermé. Ces scripts PowerShell n'ont pas été exécutés ici.

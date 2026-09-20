@@ -1,43 +1,29 @@
 {
-  "version": "0.1.1-alpha",
+  "version": "0.2.0-alpha",
   "date": "2026-09-20",
-  "delivery": "audited and corrected source code only",
+  "delivery": "private GitHub prerelease with compiled plugin DLL",
   "remote_repository": "realisticsimcockpit/DIY-Ambient",
-  "remote_visibility_rechecked_this_audit": false,
-  "remote_files_written": false,
-  "original_source_zip_sha256": "165df30b03c4187e10bc66d8337d5333b1a9c1502b95bfbeee95041d8e499922",
-  "firmware_fixture_sha256": "2913bce9892e4c6e0adafd880b7f1e37910be6865621c910e244a6f39e30a983",
-  "csharp_compiled": false,
-  "powershell_build_executed": false,
-  "simhub_loaded": false,
-  "windows_capture_tested": false,
-  "hardware_tested": false,
-  "local_source_checks": {
+  "remote_visibility_rechecked": true,
+  "remote_visibility": "PRIVATE",
+  "csharp_compiled": true,
+  "powershell_build_executed": true,
+  "simhub_loaded": true,
+  "serial_output_reported_working_by_user": true,
+  "windows_capture_fully_validated": false,
+  "all_animations_hardware_validated": false,
+  "electrical_current_measured": false,
+  "local_python_checks": {
     "executed": true,
-    "passed": 17,
+    "passed": 30,
     "failed": 0
   },
-  "independent_python_model_checks": {
-    "executed": true,
-    "passed": 7,
-    "failed": 0,
-    "random_power_frames": 10000,
-    "executes_csharp": false
-  },
-  "original_firmware_cpp_parser_simulation": {
-    "compiled_with": "g++",
-    "executed": true,
-    "passed": 194,
-    "failed": 0,
-    "simulates_uart_timing_or_interrupts": false,
-    "executes_csharp": false
-  },
   "csharp_test_scenarios": {
-    "provided": 53,
-    "executed_here": false
+    "executed": true,
+    "passed": 60,
+    "failed": 0
   },
-  "capture_backend": "GDI SDR prototype; revised native acquisition, untested on Windows. Not DXGI/HDR.",
+  "capture_backend": "GDI SDR prototype; not DXGI/HDR",
   "auxiliary_runtime_process": false,
   "firmware_modified": false,
-  "notes": "Passing Python and C++ parser simulation is NOT evidence of C# compilation, real SDK compatibility, electrical safety or Windows runtime correctness."
+  "notes": "The 15 A ceiling is a software model, not a current measurement or electrical protection. Adalight provides no hardware acknowledgement."
 }

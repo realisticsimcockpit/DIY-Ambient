@@ -20,12 +20,15 @@ namespace DIYAmbient.Core
             TelemetrySnapshot telemetry, TelemetrySelection selection, DateTime now, int identifyLed)
         {
             var colors = new Rgb[Settings.LedCount];
-            if (!enabled) return new FrameResult(colors, Estimate(colors), 1);
+            if (!enabled) return new FrameResult(colors, Estimate(colors, s.LedStripCount), 1);
             Rgb solid = new Rgb(s.SolidR, s.SolidG, s.SolidB);
             Rgb white = WhiteBalance(s);
+            Rgb[] animation = s.Mode == LightingMode.Animation ? AnimatedEffects.Compose(s, now) : null;
             for (int i = 0; i < colors.Length; i++)
                 colors[i] = s.Mode == LightingMode.White ? white :
-                    s.Mode == LightingMode.Solid ? solid : screen != null && screen.Length == 60 ? screen[i] : Rgb.Black;
+                    s.Mode == LightingMode.Solid ? solid :
+                    s.Mode == LightingMode.Animation ? animation[i] :
+                    screen != null && screen.Length == 60 ? screen[i] : Rgb.Black;
 
             if (s.TelemetryLedCount > 0 && telemetry != null && telemetry.IsFresh(now))
             {
@@ -62,27 +65,30 @@ namespace DIYAmbient.Core
             if (input == null || input.Length != Settings.LedCount)
                 throw new ArgumentException("60 couleurs requises.");
             if (double.IsNaN(s.CurrentBudgetAmps) || double.IsInfinity(s.CurrentBudgetAmps) ||
-                s.CurrentBudgetAmps < Settings.LedCount * IdleAmpsPerLed ||
+                s.CurrentBudgetAmps < Settings.LedCount * s.LedStripCount * IdleAmpsPerLed ||
                 double.IsNaN(s.Brightness) || double.IsInfinity(s.Brightness) || s.Brightness < 0 || s.Brightness > 1)
                 throw new ArgumentException("Budget ou luminosité invalide.");
             // FIXED ceiling based on the worst modeled frame (60 full RGB whites).
             // Do not recompute a larger gain when a flag/spotter replaces some whites:
             // that made unrelated LEDs brighten and caused image-dependent pumping.
-            double idle = Settings.LedCount * IdleAmpsPerLed;
-            double maximumDynamic = Settings.LedCount * 3 * ChannelAmps;
+            double idle = Settings.LedCount * s.LedStripCount * IdleAmpsPerLed;
+            double maximumDynamic = Settings.LedCount * s.LedStripCount * 3 * ChannelAmps;
             double scale = Math.Min(1, Math.Max(0, (s.CurrentBudgetAmps - idle) / maximumDynamic));
             double effective = scale * s.Brightness;
             var result = new Rgb[Settings.LedCount];
             for (int i = 0; i < result.Length; i++)
                 result[i] = Rgb.Scale(input[i], effective, effective, effective);
-            return new FrameResult(result, Estimate(result), scale);
+            return new FrameResult(result, Estimate(result, s.LedStripCount), scale);
         }
 
         public static double Estimate(Rgb[] colors)
+        { return Estimate(colors, 1); }
+
+        public static double Estimate(Rgb[] colors, int stripCount)
         {
             double amps = colors.Length * IdleAmpsPerLed;
             foreach (Rgb c in colors) amps += ChannelAmps * (c.R + c.G + c.B) / 255.0;
-            return amps;
+            return amps * stripCount;
         }
     }
 }
