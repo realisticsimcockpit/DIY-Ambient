@@ -1,0 +1,517 @@
+{
+  "SchemaVersion": 1,
+  "SerialPort": "",
+  "PreviewOnly": true,
+  "ElectricalConfirmed": false,
+  "Mode": 0,
+  "Brightness": 0.25,
+  "TelemetryLedCount": 0,
+  "SolidR": 255,
+  "SolidG": 180,
+  "SolidB": 90,
+  "Warmth": 0,
+  "Tint": 0,
+  "CurrentBudgetAmps": 0.5,
+  "Displays": [
+    {
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "Position": -1,
+      "FirstLed": 1,
+      "LastLed": 20
+    },
+    {
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "Position": 0,
+      "FirstLed": 21,
+      "LastLed": 40
+    },
+    {
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "Position": 1,
+      "FirstLed": 41,
+      "LastLed": 60
+    }
+  ],
+  "Zones": [
+    {
+      "Led": 1,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.0,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 2,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.176,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 3,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.352,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 4,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.528,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 5,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.704,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 6,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.88,
+      "Y": 0.0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 7,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.88,
+      "Y": 0.176,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 8,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.88,
+      "Y": 0.352,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 9,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.88,
+      "Y": 0.528,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 10,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.88,
+      "Y": 0.704,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 11,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.88,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 12,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.704,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 13,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.528,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 14,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.352,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 15,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0.176,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 16,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 17,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0,
+      "Y": 0.704,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 18,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0,
+      "Y": 0.528,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 19,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0,
+      "Y": 0.352,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 20,
+      "DeviceName": "\\\\.\\DISPLAY2",
+      "X": 0,
+      "Y": 0.176,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 21,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.0,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 22,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.176,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 23,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.352,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 24,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.528,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 25,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.704,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 26,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.88,
+      "Y": 0.0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 27,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.88,
+      "Y": 0.176,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 28,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.88,
+      "Y": 0.352,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 29,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.88,
+      "Y": 0.528,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 30,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.88,
+      "Y": 0.704,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 31,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.88,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 32,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.704,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 33,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.528,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 34,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.352,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 35,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0.176,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 36,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 37,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0,
+      "Y": 0.704,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 38,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0,
+      "Y": 0.528,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 39,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0,
+      "Y": 0.352,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 40,
+      "DeviceName": "\\\\.\\DISPLAY1",
+      "X": 0,
+      "Y": 0.176,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 41,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.0,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 42,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.176,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 43,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.352,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 44,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.528,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 45,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.704,
+      "Y": 0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 46,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.88,
+      "Y": 0.0,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 47,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.88,
+      "Y": 0.176,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 48,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.88,
+      "Y": 0.352,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 49,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.88,
+      "Y": 0.528,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 50,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.88,
+      "Y": 0.704,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 51,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.88,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 52,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.704,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 53,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.528,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 54,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.352,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 55,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0.176,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 56,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0,
+      "Y": 0.88,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 57,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0,
+      "Y": 0.704,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 58,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0,
+      "Y": 0.528,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 59,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0,
+      "Y": 0.352,
+      "Width": 0.12,
+      "Height": 0.12
+    },
+    {
+      "Led": 60,
+      "DeviceName": "\\\\.\\DISPLAY3",
+      "X": 0,
+      "Y": 0.176,
+      "Width": 0.12,
+      "Height": 0.12
+    }
+  ]
+}

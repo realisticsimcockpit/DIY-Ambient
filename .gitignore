@@ -1,0 +1,23 @@
+# Local outputs and tools: never publish host DLLs, local settings or logs.
+artifacts/
+bin/
+obj/
+.vs/
+.vscode/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.log
+*.bak
+*.tmp
+*.rsp
+*.zip
+*.bundle
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+settings.json
+!settings.example.json

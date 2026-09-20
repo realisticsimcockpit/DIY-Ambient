@@ -1,0 +1,176 @@
+[
+  {
+    "path": "AGENTS.md",
+    "change": "modified",
+    "old_sha256": "0fec73f9bf4e78fd324575001466f5a3bdb2bfe8d28f0e7e86d5f1d12d534cdc",
+    "new_sha256": "1108707a11b3d891bbc2428247e64a7763a1f1130a8be28f514579f7bd528942"
+  },
+  {
+    "path": "CONSTRUIRE.cmd",
+    "change": "modified",
+    "old_sha256": "ce336fc958ee4b762ee630612e39e3d68db1319d751c8821e2215805bc9bc0a3",
+    "new_sha256": "05289a1e0320e10f2b036f1105d18184aafd996e6245c0d55d5eaaa71350aff2"
+  },
+  {
+    "path": "README.md",
+    "change": "modified",
+    "old_sha256": "7685d4bed79cea4df83a1e453941cf1a288c3fd9c9977765e67207c5bc54e50a",
+    "new_sha256": "ae456b5266b4a7efc518ce75c099f41a9e87f5ab83f0c0b1c59908ce7a2859f5"
+  },
+  {
+    "path": "TESTER.cmd",
+    "change": "modified",
+    "old_sha256": "33e458feb7ba1eed67b5424856b6e64210f5b83acc4541cd26926d2df100b1d5",
+    "new_sha256": "fe7d718424002dd2022d3727682bb1148f8a6229d301b207cfbe6a67184958cf"
+  },
+  {
+    "path": "docs/ARCHITECTURE.md",
+    "change": "modified",
+    "old_sha256": "cdfb3c30fbf9e5800d52eb301a43bd9de59d6e06dc4fa6a46b8b5ab68c56c423",
+    "new_sha256": "6af04ca4c7720dd40b3b989f1cc36d9adaa999f5d0ead8716007f09af9e6660e"
+  },
+  {
+    "path": "docs/AUDIT_2026-09-20.md",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "c40d3fb0e638e8f00cd2b0f77f5ea39ec672742aa8db339b8455f28a42941f89"
+  },
+  {
+    "path": "docs/BUILD_STATUS.json",
+    "change": "modified",
+    "old_sha256": "1fdacecd8f740a784b65722a2712fd84cce06b5a07d1df9293a99a12b635d75d",
+    "new_sha256": "0eefe0c0342f679ce3e1c662ee494890329763b9a10a9521879b79509bed3128"
+  },
+  {
+    "path": "docs/VALIDATION.md",
+    "change": "modified",
+    "old_sha256": "957bb2d8da75b16b0d2b67ab81debd5e29e2f8bf9614de94d0a8786059c090fb",
+    "new_sha256": "60de3bbed96fdb7f8c6dde4fbed10e7595edf08eb7d9ae0cbdf4add5975f14ed"
+  },
+  {
+    "path": "scripts/Build.ps1",
+    "change": "modified",
+    "old_sha256": "c37f276751f4a8bc4498d4a8752ffdee0b3ab5c52c45c955aebd5f0f7e3c5e8f",
+    "new_sha256": "7f4ecd46a44110301403ced36b69a72a393010d4c615a6f69cb99ab95f591fb0"
+  },
+  {
+    "path": "scripts/Common.ps1",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "635de36a32535e05393251dce63fff3bd75b1ee4a5a2256888c9e93e25e708d0"
+  },
+  {
+    "path": "scripts/Test.ps1",
+    "change": "modified",
+    "old_sha256": "672faaaa6c40768efddada4fa762db8a2b2bcd57654200fbb135e3893a92df6c",
+    "new_sha256": "bb752ab0a2e4fd3621ede8c93218fe4b3ede12f1462a26b3b778ee0df2fc5802"
+  },
+  {
+    "path": "src/DIYAmbient.Core/FrameComposer.cs",
+    "change": "modified",
+    "old_sha256": "9ddb87fe2ca72084190a01cf0ba9c422e13a30134c0734b57f548f3ad5fe0f38",
+    "new_sha256": "135217f2e20cf4ba0e839498721d0dccb2cf1181f9faf9ba419e858e05cda93a"
+  },
+  {
+    "path": "src/DIYAmbient.Core/OutputPolicy.cs",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "e2152488f1d42ee957b9d032516ccd3e3241b98e6654567b4bd1131db6610306"
+  },
+  {
+    "path": "src/DIYAmbient.Core/Settings.cs",
+    "change": "modified",
+    "old_sha256": "10f4f2977c47caab2de1085c2732880377f61847c4544132bcc2cb04810b3a91",
+    "new_sha256": "b5a973333d65200fd85028bfb322c0ab157ffdea9938211210ae26ebbfc3e89a"
+  },
+  {
+    "path": "src/DIYAmbient.Core/TelemetryFlagReader.cs",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "918d3cbbcf3faef5e0f235560ac0e3eb665fe3ac9782ef20f1cfc703dd66da36"
+  },
+  {
+    "path": "src/DIYAmbient.Core/ZoneSampler.cs",
+    "change": "modified",
+    "old_sha256": "510f7ac7d24bd18f925798903f6d594c983957b7e201f5c58a667c9f0383d400",
+    "new_sha256": "965b40ab417b81e668f73e6f887e5a44a4151f8606404e77a617a71c59c069ff"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/AmbientEngine.cs",
+    "change": "modified",
+    "old_sha256": "f00f0ea2f7c8421e171761626b97fde463315f9d49ee5ab3c9f60ccacd193a57",
+    "new_sha256": "a700c5a7f004e833a0709af5e33b37445e55a9296cd15e7773d5a801b607f271"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/ConfigurationWindow.cs",
+    "change": "modified",
+    "old_sha256": "c39413e08fa69981abeea57981bfc3a49d14c15e5496ed8ce58d54bd8de07622",
+    "new_sha256": "1680bc13f6c43b13c5d0b870d0262e48c4e592b411bcb1e6ebc4b9e627d936cc"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/DIYAmbient.Plugin.csproj",
+    "change": "modified",
+    "old_sha256": "26824a2acec9fa7ed1d54faf2153a2fb785ebac5387dcac6c0ef210d7cf61c80",
+    "new_sha256": "e4672edac1d62c296c4a0d6a1a9fe4dea85aec6c00da427c1d91d6487424e29b"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/Plugin.cs",
+    "change": "modified",
+    "old_sha256": "8757b041bafbeec0ca4972de87c5cf8a95ea3af4064833c6064471af07797b29",
+    "new_sha256": "2652b00b98ecc4369c6ae448a9fdf7c3e1d3c34214d5de4a7e8d1e347aae7252"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/ScreenCapture.cs",
+    "change": "modified",
+    "old_sha256": "b61d12ab26d63f8cafed374936d2791aa141c0a86e54d0fdbc58ea7d39016622",
+    "new_sha256": "08cc2bdb861bd2df6728afe22262a77274a4c72726c96c2afa580ddd1b821e7a"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/SettingsControl.cs",
+    "change": "modified",
+    "old_sha256": "93c1c7afdc3e191126fa7ec06b55853cff81e27e209ffb05875e518e4516e032",
+    "new_sha256": "f5e3dbf3c0a763ea5c458e73c6b8acb014587db47fd7066b4c8cd158caae7132"
+  },
+  {
+    "path": "src/DIYAmbient.Plugin/ZoneEditorWindow.cs",
+    "change": "modified",
+    "old_sha256": "2e595e96c253c2c0b8f48eba3fb005917a0da61b3432a5ad768675ca298fbb7b",
+    "new_sha256": "b4106267a5713863f158bf6e6ad0e37974dba2faf45699e33f9ecbbc789280b9"
+  },
+  {
+    "path": "tests/CoreTests.cs",
+    "change": "modified",
+    "old_sha256": "b9cadccaa469a40b9bfe42d373c2e250f36acb6076a16dbdda7e98d703f38e23",
+    "new_sha256": "74b931eb614ff6157372ac7e14a1325b2851719298e6445497d3b9c1c76c006a"
+  },
+  {
+    "path": "tests/FirmwareHarness.cpp",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "664aa7d0afd31c4fb6480e306d31600fcfe8eb4c66411fa9829812e9ef8f35f7"
+  },
+  {
+    "path": "tests/check_models.py",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "d42648854c117c5e02d3f6708b171ffadad150e1b7838efa99fb61b1df500967"
+  },
+  {
+    "path": "tests/check_sources.py",
+    "change": "modified",
+    "old_sha256": "7f70b95d4a9b4e2c66fe5029cc28ee82222ae52605504a13d430df48962b4d11",
+    "new_sha256": "92d33c1cbe970a85c033e6ebd5a57c9f4eef8d608420284442d38fd375953ae5"
+  },
+  {
+    "path": "tests/fake_arduino/FastLED.h",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "6df7b39d0d0a5ab00e7a6c57706893b5336f35c46eb4c5563f945f68325c1d04"
+  },
+  {
+    "path": "tests/firmware_fixture/Adalight_WS2812.original.ino",
+    "change": "added",
+    "old_sha256": null,
+    "new_sha256": "2913bce9892e4c6e0adafd880b7f1e37910be6865621c910e244a6f39e30a983"
+  }
+]

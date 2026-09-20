@@ -1,0 +1,23 @@
+STATIC CHECKS ONLY — C# compilation/execution and hardware validation NOT performed.
+test_build_cleans_stale_outputs_and_uses_staging (__main__.SourceChecks.test_build_cleans_stale_outputs_and_uses_staging) ... ok
+test_capture_results_have_layout_generation (__main__.SourceChecks.test_capture_results_have_layout_generation) ... ok
+test_capture_uses_per_display_native_context_and_flush (__main__.SourceChecks.test_capture_uses_per_display_native_context_and_flush) ... ok
+test_csharp_lexical_balance (__main__.SourceChecks.test_csharp_lexical_balance) ... ok
+test_csharp_scenarios_provided_but_not_run_here (__main__.SourceChecks.test_csharp_scenarios_provided_but_not_run_here) ... ok
+test_display_mapping_matches_user_request (__main__.SourceChecks.test_display_mapping_matches_user_request) ... ok
+test_example_covers_exactly_60_leds (__main__.SourceChecks.test_example_covers_exactly_60_leds) ... ok
+test_example_rectangles_are_valid (__main__.SourceChecks.test_example_rectangles_are_valid) ... ok
+test_new_electrical_values_invalidate_confirmation (__main__.SourceChecks.test_new_electrical_values_invalidate_confirmation) ... ok
+test_no_external_runtime_or_network_client_in_sources (__main__.SourceChecks.test_no_external_runtime_or_network_client_in_sources) ... ok
+test_project_is_one_library_with_real_references (__main__.SourceChecks.test_project_is_one_library_with_real_references) ... ok
+test_protocol_source_contract (__main__.SourceChecks.test_protocol_source_contract) ... ok
+test_safe_defaults_in_example_and_sources (__main__.SourceChecks.test_safe_defaults_in_example_and_sources) ... ok
+test_scripts_are_windows_compatible_encoded (__main__.SourceChecks.test_scripts_are_windows_compatible_encoded) ... ok
+test_unknown_enums_not_guessed_as_telemetry (__main__.SourceChecks.test_unknown_enums_not_guessed_as_telemetry) ... ok
+test_white_balance_is_not_a_global_screen_filter (__main__.SourceChecks.test_white_balance_is_not_a_global_screen_filter) ... ok
+test_white_preview_is_separate_from_saved_settings (__main__.SourceChecks.test_white_preview_is_separate_from_saved_settings) ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.052s
+
+OK

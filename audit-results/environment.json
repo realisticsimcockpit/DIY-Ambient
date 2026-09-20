@@ -1,0 +1,17 @@
+{
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "python": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "tools": {
+    "g++": "/usr/bin/g++",
+    "dotnet": null,
+    "mono": null,
+    "mcs": null,
+    "csc": null,
+    "msbuild": null,
+    "pwsh": null
+  },
+  "fixture_matches_uploaded_bytes": true,
+  "fixture_sha256": "2913bce9892e4c6e0adafd880b7f1e37910be6865621c910e244a6f39e30a983",
+  "windows_runtime": false,
+  "real_serial_or_led_tests": false
+}
