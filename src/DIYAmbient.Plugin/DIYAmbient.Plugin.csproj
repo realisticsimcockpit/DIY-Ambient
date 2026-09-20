@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)'==''">Release</Configuration>
+    <OutputType>Library</OutputType>
+    <RootNamespace>DIYAmbient.Plugin</RootNamespace>
+    <AssemblyName>DIYAmbient.Plugin</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <LangVersion>5</LangVersion>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <OutputPath>..\..\artifacts\plugin\</OutputPath>
+    <SimHubPath Condition="'$(SimHubPath)'=='' and Exists('$(MSBuildProgramFiles32)\SimHub\SimHub.Plugins.dll')">$(MSBuildProgramFiles32)\SimHub</SimHubPath>
+    <SimHubPath Condition="'$(SimHubPath)'==''">$(ProgramFiles)\SimHub</SimHubPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="GameReaderCommon" Condition="Exists('$(SimHubPath)\GameReaderCommon.dll')"><HintPath>$(SimHubPath)\GameReaderCommon.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="SimHub.Plugins" Condition="Exists('$(SimHubPath)\SimHub.Plugins.dll')"><HintPath>$(SimHubPath)\SimHub.Plugins.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="InputManagerCS" Condition="Exists('$(SimHubPath)\InputManagerCS.dll')"><HintPath>$(SimHubPath)\InputManagerCS.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="SimHub.Logging" Condition="Exists('$(SimHubPath)\SimHub.Logging.dll')"><HintPath>$(SimHubPath)\SimHub.Logging.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="log4net" Condition="Exists('$(SimHubPath)\log4net.dll')"><HintPath>$(SimHubPath)\log4net.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="MahApps.Metro" Condition="Exists('$(SimHubPath)\MahApps.Metro.dll')"><HintPath>$(SimHubPath)\MahApps.Metro.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="Newtonsoft.Json" Condition="Exists('$(SimHubPath)\Newtonsoft.Json.dll')"><HintPath>$(SimHubPath)\Newtonsoft.Json.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AmbientEngine.cs" />
+    <Compile Include="ConfigurationWindow.cs" />
+    <Compile Include="Plugin.cs" />
+    <Compile Include="ScreenCapture.cs" />
+    <Compile Include="SettingsControl.cs" />
+    <Compile Include="Storage.cs" />
+    <Compile Include="ZoneEditorWindow.cs" />
+    <Compile Include="..\DIYAmbient.Core\*.cs"><Link>Core\%(Filename)%(Extension)</Link></Compile>
+  </ItemGroup>
+  <Target Name="RequireRealSimHub" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(SimHubPath)\SimHub.Plugins.dll')" Text="Real SimHub SDK missing. Set SimHubPath to the actual installation." />
+    <Error Condition="!Exists('$(SimHubPath)\GameReaderCommon.dll')" Text="GameReaderCommon.dll is missing." />
+  </Target>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
