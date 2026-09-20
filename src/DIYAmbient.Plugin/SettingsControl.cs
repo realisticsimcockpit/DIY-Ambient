@@ -239,6 +239,46 @@ namespace DIYAmbient.Plugin
                 var style = new Style(type, TryFindResource(type) as Style);
                 style.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
                 style.Setters.Add(new Setter(Control.BackgroundProperty, background));
+                if (type == typeof(ComboBox))
+                {
+                    // Some host/Windows templates paint white chrome regardless of Background.
+                    // Keep selected values and editable port/profile text readable in dark mode.
+                    style.Setters.Add(new Setter(Control.TemplateProperty, (ControlTemplate)XamlReader.Parse(@"
+<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
+                 xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='{x:Type ComboBox}'>
+  <Grid MinHeight='28' x:Name='Body'>
+    <Border Background='{TemplateBinding Background}' BorderBrush='#666666' BorderThickness='1'/>
+    <ToggleButton Focusable='False' ClickMode='Press' IsChecked='{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}'>
+      <ToggleButton.Template><ControlTemplate TargetType='{x:Type ToggleButton}'>
+        <Border Background='Transparent'><Path Data='M 0 0 L 4 4 L 8 0' Stroke='White' StrokeThickness='1.5' HorizontalAlignment='Right' VerticalAlignment='Center' Margin='0,0,8,0'/></Border>
+      </ControlTemplate></ToggleButton.Template>
+    </ToggleButton>
+    <ContentPresenter x:Name='Selected' Margin='8,4,26,4' IsHitTestVisible='False'
+                      Content='{TemplateBinding SelectionBoxItem}' ContentTemplate='{TemplateBinding SelectionBoxItemTemplate}'/>
+    <TextBox x:Name='PART_EditableTextBox' Visibility='Hidden' Margin='5,2,25,2' Background='#262626' Foreground='White' BorderThickness='0'
+             IsReadOnly='{TemplateBinding IsReadOnly}'/>
+    <Popup x:Name='PART_Popup' Placement='Bottom' AllowsTransparency='True' Focusable='False'
+           IsOpen='{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}'>
+      <Border Background='#262626' BorderBrush='#666666' BorderThickness='1' MinWidth='{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}'>
+        <ScrollViewer MaxHeight='320' CanContentScroll='True'><ItemsPresenter/></ScrollViewer>
+      </Border>
+    </Popup>
+  </Grid>
+  <ControlTemplate.Triggers>
+    <Trigger Property='IsEditable' Value='True'>
+      <Setter TargetName='PART_EditableTextBox' Property='Visibility' Value='Visible'/>
+      <Setter TargetName='Selected' Property='Visibility' Value='Hidden'/>
+    </Trigger>
+    <Trigger Property='IsEnabled' Value='False'><Setter TargetName='Body' Property='Opacity' Value='0.5'/></Trigger>
+  </ControlTemplate.Triggers>
+</ControlTemplate>")));
+                }
+                if (type == typeof(ComboBoxItem))
+                {
+                    var highlighted = new Trigger { Property = ComboBoxItem.IsHighlightedProperty, Value = true };
+                    highlighted.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.SteelBlue));
+                    style.Triggers.Add(highlighted);
+                }
                 if (type == typeof(TabItem))
                 {
                     style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(16, 8, 16, 8)));
