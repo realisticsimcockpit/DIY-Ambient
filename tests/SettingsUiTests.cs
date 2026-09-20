@@ -57,6 +57,15 @@ class SettingsUiTests
             {
                 tabs.SelectedIndex = index;
                 ui.Measure(new Size(1040, 1400)); ui.Arrange(new Rect(0, 0, 1040, 1400)); ui.UpdateLayout();
+                if (index == 0)
+                {
+                    var port = (ComboBox)uiType.GetField("port", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+                    var editor = (TextBox)port.Template.FindName("PART_EditableTextBox", port);
+                    Assert(editor != null && ((SolidColorBrush)editor.Background).Color.R == 38, "Editable port must use dark template");
+                    port.Text = "COM32";
+                    Assert(editor.Text == "COM32", "Editable port binding failed");
+                    port.Text = "";
+                }
                 var bitmap = new RenderTargetBitmap(1040, 1400, 96, 96, PixelFormats.Pbgra32); bitmap.Render(ui);
                 var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
                 using (var stream = File.Create(Path.Combine(args[2], "settings-" + index + ".png"))) encoder.Save(stream);

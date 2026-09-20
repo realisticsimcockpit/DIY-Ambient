@@ -243,7 +243,7 @@ namespace DIYAmbient.Plugin
                 {
                     // Some host/Windows templates paint white chrome regardless of Background.
                     // Keep selected values and editable port/profile text readable in dark mode.
-                    style.Setters.Add(new Setter(Control.TemplateProperty, (ControlTemplate)XamlReader.Parse(@"
+                    var comboTemplate = (ControlTemplate)XamlReader.Parse(@"
 <ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
                  xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='{x:Type ComboBox}'>
   <Grid MinHeight='28' x:Name='Body'>
@@ -271,7 +271,11 @@ namespace DIYAmbient.Plugin
     </Trigger>
     <Trigger Property='IsEnabled' Value='False'><Setter TargetName='Body' Property='Opacity' Value='0.5'/></Trigger>
   </ControlTemplate.Triggers>
-</ControlTemplate>")));
+</ControlTemplate>");
+                    style.Setters.Add(new Setter(Control.TemplateProperty, comboTemplate));
+                    var editable = new Trigger { Property = ComboBox.IsEditableProperty, Value = true };
+                    editable.Setters.Add(new Setter(Control.TemplateProperty, comboTemplate));
+                    style.Triggers.Add(editable);
                 }
                 if (type == typeof(ComboBoxItem))
                 {
