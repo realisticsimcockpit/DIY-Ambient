@@ -25,16 +25,30 @@ namespace DIYAmbient.Plugin
         public readonly DateTime At;
         public readonly string Status;
         public readonly long Version;
-        public CapturedFrame(Rgb[] colors, string status, long version)
-        { Colors = colors; Status = status; Version = version; At = DateTime.UtcNow; }
+        public CapturedFrame(Rgb[] colors, string status, long version, DateTime at)
+        { Colors = colors; Status = status; Version = version; At = at; }
     }
     internal sealed class TestRequest
     {
-        public readonly bool Left, Right, Yellow;
+        public readonly bool Left, Right, Yellow, Blue, Green, White, Black, Orange, Checkered, Abs, Tc, WheelLock;
+        public readonly double RpmPercent;
         public readonly int IdentifyLed;
+        public readonly TelemetryEffect? Effect;
+        public TelemetrySnapshot Previous; // Owned by the output worker only.
         private readonly Stopwatch elapsed = Stopwatch.StartNew();
         public TestRequest(bool left, bool right, int id, bool yellow)
         { Left = left; Right = right; IdentifyLed = id; Yellow = yellow; }
+        public TestRequest(TelemetryEffect effect)
+        {
+            Effect = effect;
+            Left = effect == TelemetryEffect.SpotterLeft; Right = effect == TelemetryEffect.SpotterRight;
+            Yellow = effect == TelemetryEffect.Yellow; Blue = effect == TelemetryEffect.Blue;
+            Green = effect == TelemetryEffect.Green; White = effect == TelemetryEffect.White;
+            Black = effect == TelemetryEffect.Black; Orange = effect == TelemetryEffect.Orange;
+            Checkered = effect == TelemetryEffect.Checkered;
+            Abs = effect == TelemetryEffect.Abs; Tc = effect == TelemetryEffect.Tc;
+            WheelLock = effect == TelemetryEffect.WheelLock; RpmPercent = effect == TelemetryEffect.Rpm ? 75 : 0;
+        }
         public bool Active { get { return elapsed.ElapsedMilliseconds < 3000; } }
     }
 
@@ -43,8 +57,24 @@ namespace DIYAmbient.Plugin
         // SimHub may recreate plugins at a game change. A worker still closing its
         // port must finish before any new instance may become a serial writer.
         private static readonly object OutputOwner = new object();
+        private static int firmwareBusy;
+        internal static bool FirmwareBusy { get { return Interlocked.CompareExchange(ref firmwareBusy, 0, 0) != 0; } }
+        internal static void WithFirmwarePort(Action upload)
+        {
+            if (Interlocked.CompareExchange(ref firmwareBusy, 1, 0) != 0)
+                throw new InvalidOperationException("Une opération firmware est déjà en cours.");
+            bool acquired = false;
+            try
+            {
+                acquired = Monitor.TryEnter(OutputOwner, 10000);
+                if (!acquired) throw new TimeoutException("Le port n'a pas été libéré. Aucun flash lancé.");
+                upload();
+            }
+            finally { if (acquired) Monitor.Exit(OutputOwner); Interlocked.Exchange(ref firmwareBusy, 0); }
+        }
         private readonly object gate = new object();
         private readonly CancellationTokenSource stop = new CancellationTokenSource();
+        private readonly AutoResetEvent outputWake = new AutoResetEvent(false);
         private readonly Task captureTask, outputTask;
         private volatile EngineState state;
         private volatile TelemetrySnapshot telemetry = TelemetrySnapshot.Empty;
@@ -54,7 +84,11 @@ namespace DIYAmbient.Plugin
         private volatile string status = "Éteint — aucun port ouvert";
         private volatile string telemetryStatus = "Aucune télémétrie";
         private SerialPort serial; // Only the output worker may access this object.
+        private bool evoFirmware;
+        private volatile string firmwareStatus = "Firmware non identifié";
+        public string FirmwareStatus { get { return firmwareStatus; } }
         private Stopwatch retryDelay;
+        private Stopwatch lastWriteAt;
         private bool disposed;
         private volatile bool keepOnAfterExit;
         private volatile bool startupBlackoutPending;
@@ -121,7 +155,14 @@ namespace DIYAmbient.Plugin
         }
         public void ClearTest() { test = null; }
         public void SetTelemetry(TelemetrySnapshot snapshot, string description)
-        { telemetry = snapshot ?? TelemetrySnapshot.Empty; telemetryStatus = description; }
+        {
+            lock (gate)
+            {
+                if (disposed) return;
+                telemetry = (snapshot ?? TelemetrySnapshot.Empty).WithTiming(telemetry);
+                telemetryStatus = description;
+            }
+        }
         public void Test(bool left, bool right, int identifyLed)
         {
             lock (gate)
@@ -134,14 +175,14 @@ namespace DIYAmbient.Plugin
                 test = new TestRequest(left, right, identifyLed, false);
             }
         }
-        public void TestYellowFlag()
+        public void TestTelemetry(TelemetryEffect effect)
         {
             lock (gate)
             {
                 EnsureActive();
                 if (!state.Enabled) throw new InvalidOperationException("Activer l'éclairage avant le test.");
                 if (state.Settings.TelemetryLedCount == 0) throw new InvalidOperationException("Choisir au moins 2 LED de télémétrie.");
-                test = new TestRequest(false, false, 0, true);
+                test = new TestRequest(effect);
             }
         }
         private void EnsureActive() { if (disposed) throw new ObjectDisposedException("DIY Ambient light EVO"); }
@@ -166,22 +207,27 @@ namespace DIYAmbient.Plugin
                         if (stop.Token.WaitHandle.WaitOne(100)) break;
                         continue;
                     }
+                    var captureClock = Stopwatch.StartNew();
+                    DateTime captureStartedAt = DateTime.UtcNow;
                     try
                     {
                         if (capture == null) capture = new ScreenCapture();
                         Rgb[] colors = capture.Capture(current.Settings);
                         // A slow capture of an old layout must not replace the current one.
                         if (!stop.IsCancellationRequested && state.CaptureVersion == current.CaptureVersion)
-                            captured = new CapturedFrame(colors, capture.Status, current.CaptureVersion);
+                        {
+                            captured = new CapturedFrame(colors, capture.Status, current.CaptureVersion, captureStartedAt);
+                            outputWake.Set();
+                        }
                     }
                     catch (Exception ex)
                     {
                         if (state.CaptureVersion == current.CaptureVersion)
-                            captured = new CapturedFrame(new Rgb[60], "Capture indisponible : " + ex.Message, current.CaptureVersion);
+                            captured = new CapturedFrame(new Rgb[60], "Capture indisponible : " + ex.Message, current.CaptureVersion, captureStartedAt);
                         Storage.Log("Capture error: " + ex.Message); CloseCapture(ref capture);
                         if (stop.Token.WaitHandle.WaitOne(1000)) break;
                     }
-                    if (stop.Token.WaitHandle.WaitOne(67)) break; // <= ~15 captures/s
+                    if (stop.Token.WaitHandle.WaitOne(CapturePacing.RemainingMilliseconds(captureClock.ElapsedMilliseconds))) break;
                 }
             }
             catch (Exception ex) { Storage.Log("Capture worker stopped: " + ex.Message); }
@@ -190,26 +236,31 @@ namespace DIYAmbient.Plugin
 
         private void OutputLoop()
         {
-            bool ownsOutput = false;
-            try
+            while (!stop.IsCancellationRequested)
             {
-                while (!stop.IsCancellationRequested && !(ownsOutput = Monitor.TryEnter(OutputOwner, 100)))
-                    status = "Attente de l'arrêt de l'ancienne connexion";
-                while (ownsOutput && !stop.IsCancellationRequested)
+                if (FirmwareBusy) { status = "Mise à jour firmware — sortie suspendue"; if (stop.Token.WaitHandle.WaitOne(100)) break; continue; }
+                bool ownsOutput = false;
+                try
                 {
-                    try { OutputTick(); }
-                    catch (Exception ex)
+                    while (!stop.IsCancellationRequested && !(ownsOutput = Monitor.TryEnter(OutputOwner, 100)))
+                        status = "Attente de l'arrêt de l'ancienne connexion";
+                    while (ownsOutput && !stop.IsCancellationRequested && !FirmwareBusy)
                     {
-                        status = "Connexion interrompue : " + ex.Message;
-                        Storage.Log("Output error: " + ex.Message);
-                        Disconnect(false); retryDelay = Stopwatch.StartNew();
+                        try { OutputTick(); }
+                        catch (Exception ex)
+                        {
+                            status = "Connexion interrompue : " + ex.Message;
+                            Storage.Log("Output error: " + ex.Message);
+                            Disconnect(false); retryDelay = Stopwatch.StartNew();
+                        }
+                        int wait = lastWriteAt == null ? CapturePacing.FrameIntervalMilliseconds : CapturePacing.RemainingMilliseconds(lastWriteAt.ElapsedMilliseconds);
+                        if (WaitHandle.WaitAny(new[] { stop.Token.WaitHandle, outputWake }, wait) == 0) break;
                     }
-                    if (stop.Token.WaitHandle.WaitOne(34)) break; // <= ~30 output frames/s
                 }
-            }
-            finally
-            {
-                if (ownsOutput) { try { Disconnect(!keepOnAfterExit); } finally { Monitor.Exit(OutputOwner); } }
+                finally
+                {
+                    if (ownsOutput) { try { Disconnect(!keepOnAfterExit || FirmwareBusy); } finally { Monitor.Exit(OutputOwner); } }
+                }
             }
         }
 
@@ -231,8 +282,12 @@ namespace DIYAmbient.Plugin
             TestRequest request = test;
             bool testing = request != null && request.Active;
             bool identifying = testing && request.IdentifyLed > 0;
+            if (testing && request.Effect.HasValue) s = TelemetryTestSettings.ForEffect(s, request.Effect.Value);
             bool enabled = current.Enabled && (!current.Editing || identifying);
-            TelemetrySnapshot t = testing ? new TelemetrySnapshot(true, request.Left, request.Right, request.Yellow, false, now) : telemetry;
+            TelemetrySnapshot t = testing ? new TelemetrySnapshot(true, request.Left, request.Right,
+                request.Yellow, request.Blue, request.Green, request.White, request.Black, request.Orange,
+                request.Checkered, request.Abs, request.Tc, request.WheelLock, request.RpmPercent, now) : telemetry;
+            if (testing) { t = t.WithTiming(request.Previous); request.Previous = t; }
             FrameResult frame = FrameComposer.Compose(s, enabled, pixels, t, current.Selection, now,
                 identifying ? request.IdentifyLed : 0);
             lock (gate)
@@ -264,7 +319,8 @@ namespace DIYAmbient.Plugin
                 // Changes of port/budget/OFF are serialized against the final Write call.
                 // A packet already in the OS/USB queue cannot be retracted.
                 if (disposed || !object.ReferenceEquals(current, state) || !current.Enabled || s.PreviewOnly) return;
-                if (serial.BytesToWrite == 0) serial.Write(packet, 0, packet.Length);
+                if (serial.BytesToWrite == 0 && (lastWriteAt == null || lastWriteAt.ElapsedMilliseconds >= CapturePacing.FrameIntervalMilliseconds))
+                { serial.Write(packet, 0, packet.Length); lastWriteAt = Stopwatch.StartNew(); }
             }
             status = current.Editing && !identifying ? "Placement des zones — fond éteint, port conservé" :
                 "Envoi Adalight — " + serial.PortName + " — 60 LED / 115200 bauds (sans accusé de réception)";
@@ -273,7 +329,7 @@ namespace DIYAmbient.Plugin
         private bool ConnectionWanted(string portName)
         {
             EngineState current = state;
-            return !stop.IsCancellationRequested && current.Enabled && !current.Settings.PreviewOnly &&
+            return !stop.IsCancellationRequested && !FirmwareBusy && current.Enabled && !current.Settings.PreviewOnly &&
                 string.Equals(current.Settings.SerialPort, portName, StringComparison.OrdinalIgnoreCase);
         }
         private bool WaitForController(string portName, int milliseconds)
@@ -303,7 +359,13 @@ namespace DIYAmbient.Plugin
             if (!WaitForController(portName, 34)) { Disconnect(true); return; }
             byte[] black = AdalightProtocol.Encode(new Rgb[60]);
             serial.Write(black, 0, black.Length);
-            if (!WaitForController(portName, 34)) Disconnect(true);
+            if (!WaitForController(portName, 34)) { Disconnect(true); return; }
+            // The query contains no Adalight prefix; legacy receivers ignore it.
+            byte[] query = { 69, 118, 111, 1, 0, 166 };
+            serial.Write(query, 0, query.Length);
+            if (!WaitForController(portName, 150)) { Disconnect(true); return; }
+            evoFirmware = serial.ReadExisting().Contains("DIYAMBIENT-EVO/1\n");
+            firmwareStatus = evoFirmware ? "Firmware EVO : extinction après 1 s sans trame" : "Firmware ancien / inconnu : extinction autonome non confirmée";
             retryDelay = null;
         }
 
@@ -327,6 +389,13 @@ namespace DIYAmbient.Plugin
             if (serial == null) return;
             try
             {
+                if (!black && keepOnAfterExit && evoFirmware && serial.IsOpen)
+                {
+                    // Only a normal shutdown can explicitly suspend the watchdog.
+                    byte[] hold = { 69, 118, 111, 2, 1, 164 };
+                    serial.Write(hold, 0, hold.Length);
+                    Thread.Sleep(34);
+                }
                 if (black && serial.IsOpen)
                 {
                     byte[] packet = AdalightProtocol.Encode(new Rgb[60]);
@@ -345,7 +414,7 @@ namespace DIYAmbient.Plugin
             finally
             {
                 try { serial.Dispose(); } catch (Exception ex) { Storage.Log("Serial dispose: " + ex.Message); }
-                serial = null;
+                serial = null; evoFirmware = false; lastWriteAt = null;
             }
         }
 
@@ -355,7 +424,7 @@ namespace DIYAmbient.Plugin
             {
                 if (disposed) return;
                 disposed = true;
-                keepOnAfterExit = state.Settings.KeepOnAfterExit;
+                keepOnAfterExit = state.Enabled && state.Settings.KeepOnAfterExit;
                 state = new EngineState(state.Settings, false, false, state.CaptureVersion + 1);
                 test = null; captured = null; telemetry = TelemetrySnapshot.Empty;
             }
@@ -364,14 +433,14 @@ namespace DIYAmbient.Plugin
             bool completed = false;
             try { completed = Task.WaitAll(workers, 300); }
             catch (AggregateException ex) { completed = captureTask.IsCompleted && outputTask.IsCompleted; Storage.Log("Worker shutdown: " + ex.GetBaseException().Message); }
-            if (completed) stop.Dispose();
+            if (completed) { outputWake.Dispose(); stop.Dispose(); }
             else
             {
                 Storage.Log("Stop pending: worker finishing; next serial owner will wait.");
                 Task.Factory.ContinueWhenAll(workers, tasks =>
                 {
                     foreach (Task task in tasks) if (task.IsFaulted) Storage.Log("Worker finish: " + task.Exception.GetBaseException().Message);
-                    stop.Dispose();
+                    outputWake.Dispose(); stop.Dispose();
                 }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
             }
         }

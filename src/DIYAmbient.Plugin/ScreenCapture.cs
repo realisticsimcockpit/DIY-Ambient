@@ -110,11 +110,13 @@ namespace DIYAmbient.Plugin
     {
         private sealed class Surface : IDisposable
         {
-            internal readonly int Width, Height, SourceWidth, SourceHeight;
+            internal readonly int Width, Height, SourceWidth, SourceHeight, FullWidth, FullHeight;
+            internal readonly Rectangle Crop;
+            private readonly Rectangle sourceCrop;
             internal readonly Rectangle MonitorBounds;
             internal readonly byte[] Buffer;
             private IntPtr source, destination, bitmap, previousBitmap, bits;
-            internal Surface(MonitorInfo monitor)
+            internal Surface(MonitorInfo monitor, LedZone[] zones)
             {
                 MonitorBounds = monitor.Bounds;
                 try
@@ -126,7 +128,14 @@ namespace DIYAmbient.Plugin
                     SourceWidth = Native.GetDeviceCaps(source, 8); // HORZRES
                     SourceHeight = Native.GetDeviceCaps(source, 10); // VERTRES
                     if (SourceWidth < 1 || SourceHeight < 1) throw new InvalidOperationException("Dimensions de capture invalides.");
-                    Width = 256; Height = Math.Max(32, Math.Min(512, (int)Math.Round(Width * SourceHeight / (double)SourceWidth)));
+                    FullWidth = 256; FullHeight = Math.Max(32, Math.Min(512, (int)Math.Round(FullWidth * SourceHeight / (double)SourceWidth)));
+                    Crop = BoundsFor(zones);
+                    Width = Crop.Width; Height = Crop.Height;
+                    int sx = (int)Math.Floor(Crop.Left * SourceWidth / (double)FullWidth);
+                    int sy = (int)Math.Floor(Crop.Top * SourceHeight / (double)FullHeight);
+                    int ex = (int)Math.Ceiling(Crop.Right * SourceWidth / (double)FullWidth);
+                    int ey = (int)Math.Ceiling(Crop.Bottom * SourceHeight / (double)FullHeight);
+                    sourceCrop = Rectangle.FromLTRB(sx, sy, ex, ey);
                     Buffer = new byte[Width * Height * 4];
                     destination = Native.CreateCompatibleDC(source);
                     if (destination == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -145,9 +154,17 @@ namespace DIYAmbient.Plugin
                 }
                 catch { Dispose(); throw; }
             }
+            internal Rectangle BoundsFor(LedZone[] zones)
+            {
+                int x0 = Math.Max(0, (int)Math.Floor(zones.Min(z => z.X) * FullWidth));
+                int y0 = Math.Max(0, (int)Math.Floor(zones.Min(z => z.Y) * FullHeight));
+                int x1 = Math.Min(FullWidth, Math.Max(x0 + 1, (int)Math.Ceiling(zones.Max(z => z.X + z.Width) * FullWidth)));
+                int y1 = Math.Min(FullHeight, Math.Max(y0 + 1, (int)Math.Ceiling(zones.Max(z => z.Y + z.Height) * FullHeight)));
+                return Rectangle.FromLTRB(x0, y0, x1, y1);
+            }
             internal void Read()
             {
-                if (!Native.StretchBlt(destination, 0, 0, Width, Height, source, 0, 0, SourceWidth, SourceHeight, 0x00CC0020))
+                if (!Native.StretchBlt(destination, 0, 0, Width, Height, source, sourceCrop.X, sourceCrop.Y, sourceCrop.Width, sourceCrop.Height, 0x00CC0020))
                     throw new Win32Exception(Marshal.GetLastWin32Error());
                 // Required before CPU access to a DIB's bits after GDI drawing.
                 if (!Native.GdiFlush()) throw new InvalidOperationException("Synchronisation GDI impossible.");
@@ -189,12 +206,15 @@ namespace DIYAmbient.Plugin
                         MonitorInfo monitor = monitors.FirstOrDefault(m => string.Equals(m.DeviceName, map.DeviceName, StringComparison.OrdinalIgnoreCase));
                         if (monitor == null) { errors.Add(map.DeviceName + " absent"); continue; }
                         Surface surface;
-                        if (surfaces.TryGetValue(map.DeviceName, out surface) && surface.MonitorBounds != monitor.Bounds)
+                        LedZone[] zones = settings.Zones.Where(z => string.Equals(z.DeviceName, map.DeviceName, StringComparison.OrdinalIgnoreCase)).ToArray();
+                        if (zones.Length == 0) continue;
+                        if (surfaces.TryGetValue(map.DeviceName, out surface) && (surface.MonitorBounds != monitor.Bounds || surface.Crop != surface.BoundsFor(zones)))
                         { Remove(map.DeviceName); surface = null; }
-                        if (surface == null) { surface = new Surface(monitor); surfaces[map.DeviceName] = surface; }
+                        if (surface == null) { surface = new Surface(monitor, zones); surfaces[map.DeviceName] = surface; }
                         surface.Read();
-                        foreach (LedZone zone in settings.Zones.Where(z => string.Equals(z.DeviceName, map.DeviceName, StringComparison.OrdinalIgnoreCase)))
-                            output[zone.Led - 1] = ZoneSampler.Average(surface.Buffer, surface.Width, surface.Height, surface.Width * 4, zone);
+                        foreach (LedZone zone in zones)
+                            output[zone.Led - 1] = ZoneSampler.AverageCropped(surface.Buffer, surface.Width, surface.Height, surface.Width * 4,
+                                zone, surface.FullWidth, surface.FullHeight, surface.Crop.X, surface.Crop.Y);
                     }
                     catch (Exception ex)
                     {

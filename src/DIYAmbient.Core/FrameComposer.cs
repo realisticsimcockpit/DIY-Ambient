@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace DIYAmbient.Core
 {
@@ -15,6 +16,17 @@ namespace DIYAmbient.Core
         // Conservative *model*, not measured current. Controller consumption excluded.
         public const double IdleAmpsPerLed = .001;
         public const double ChannelAmps = .020;
+        public const int TelemetryBlinkHalfPeriodMilliseconds = 250;
+        public const int GreenFlagBlinkHalfPeriodMilliseconds = 1000;
+
+        public static bool TelemetryBlinkOn(DateTime now)
+        { return TelemetryBlinkOn(now, TelemetryBlinkHalfPeriodMilliseconds); }
+
+        public static bool TelemetryBlinkOn(DateTime now, int halfPeriodMilliseconds)
+        {
+            long halfPeriods = now.Ticks / TimeSpan.TicksPerMillisecond / halfPeriodMilliseconds;
+            return halfPeriods % 2 == 0;
+        }
 
         public static FrameResult Compose(Settings s, bool enabled, Rgb[] screen,
             TelemetrySnapshot telemetry, TelemetrySelection selection, DateTime now, int identifyLed)
@@ -28,18 +40,22 @@ namespace DIYAmbient.Core
                 colors[i] = s.Mode == LightingMode.White ? white :
                     s.Mode == LightingMode.Solid ? solid :
                     s.Mode == LightingMode.Animation ? animation[i] :
+                    s.Mode == LightingMode.Rpm ? RpmColor(telemetry, now) :
                     screen != null && screen.Length == 60 ? screen[i] : Rgb.Black;
 
             if (s.TelemetryLedCount > 0 && telemetry != null && telemetry.IsFresh(now))
             {
-                // Alert background affects only selected telemetry LEDs. Spotter overrides flags.
-                if (telemetry.Yellow || telemetry.Blue)
-                {
-                    Rgb flag = telemetry.Yellow ? new Rgb(255, 160, 0) : new Rgb(0, 70, 255);
-                    Paint(colors, selection.Left, flag); Paint(colors, selection.Right, flag);
-                }
-                if (telemetry.Left) Paint(colors, selection.Left, new Rgb(255, 0, 0));
-                if (telemetry.Right) Paint(colors, selection.Right, new Rgb(255, 0, 0));
+                int[] both = selection.Left.Concat(selection.Right).ToArray();
+                // Lowest priority first. A higher-priority flag or the spotter may replace it.
+                if (s.TelemetryGreenEnabled && telemetry.Green && telemetry.BlinkOn(TelemetryEffect.Green, now, GreenFlagBlinkHalfPeriodMilliseconds)) Paint(colors, both, new Rgb(0, 255, 50));
+                if (s.TelemetryWhiteEnabled && telemetry.White) Paint(colors, both, Rgb.White);
+                if (s.TelemetryBlueEnabled && telemetry.Blue && FastBlink(telemetry, TelemetryEffect.Blue, now)) Paint(colors, both, new Rgb(0, 70, 255));
+                if (s.TelemetryYellowEnabled && telemetry.Yellow && FastBlink(telemetry, TelemetryEffect.Yellow, now)) Paint(colors, both, new Rgb(255, 160, 0));
+                if (s.TelemetryAbsEnabled && telemetry.Abs && FastBlink(telemetry, TelemetryEffect.Abs, now)) Paint(colors, both, new Rgb(255, 70, 0));
+                if (s.TelemetryTcEnabled && telemetry.Tc && FastBlink(telemetry, TelemetryEffect.Tc, now)) Paint(colors, both, new Rgb(210, 0, 255));
+                if (s.TelemetryWheelLockEnabled && telemetry.WheelLock && FastBlink(telemetry, TelemetryEffect.WheelLock, now)) Paint(colors, both, new Rgb(255, 0, 0));
+                if (s.TelemetrySpotterEnabled && telemetry.Left && FastBlink(telemetry, TelemetryEffect.SpotterLeft, now)) Paint(colors, selection.Left, SpotterRgb(s.SpotterColor));
+                if (s.TelemetrySpotterEnabled && telemetry.Right && FastBlink(telemetry, TelemetryEffect.SpotterRight, now)) Paint(colors, selection.Right, SpotterRgb(s.SpotterColor));
             }
             if (identifyLed >= 1 && identifyLed <= 60)
             {
@@ -51,6 +67,28 @@ namespace DIYAmbient.Core
 
         private static void Paint(Rgb[] frame, int[] ids, Rgb color)
         { foreach (int id in ids) frame[id - 1] = color; }
+        private static bool FastBlink(TelemetrySnapshot telemetry, TelemetryEffect effect, DateTime now)
+        { return telemetry.BlinkOn(effect, now, TelemetryBlinkHalfPeriodMilliseconds); }
+
+        public static Rgb SpotterRgb(SpotterColor color)
+        {
+            switch (color) {
+                case SpotterColor.Orange: return new Rgb(255, 70, 0);
+                case SpotterColor.Purple: return new Rgb(160, 0, 255);
+                case SpotterColor.Pink: return new Rgb(255, 0, 120);
+                case SpotterColor.White: return Rgb.White;
+                default: return new Rgb(255, 0, 0);
+            }
+        }
+
+        private static Rgb RpmColor(TelemetrySnapshot telemetry, DateTime now)
+        {
+            if (telemetry == null || !telemetry.IsFresh(now) || telemetry.RpmPercent <= 0) return Rgb.Black;
+            double fraction = telemetry.RpmPercent / 100.0;
+            if (fraction >= 1) return telemetry.BlinkOn(TelemetryEffect.Rpm, now, TelemetryBlinkHalfPeriodMilliseconds) ? new Rgb(255, 0, 0) : Rgb.Black;
+            return new Rgb((byte)Math.Round(255 * Math.Min(1, fraction * 2)),
+                (byte)Math.Round(255 * Math.Min(1, (1 - fraction) * 2)), 0);
+        }
 
         public static Rgb WhiteBalance(Settings s)
         {

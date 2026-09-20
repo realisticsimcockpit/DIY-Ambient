@@ -6,7 +6,18 @@ using System.Text.RegularExpressions;
 
 namespace DIYAmbient.Core
 {
-    public enum LightingMode { White, Solid, Screen, Animation }
+    public enum LightingMode { White, Solid, Screen, Animation, Rpm }
+    public enum SpotterColor { Red, Orange, Purple, Pink, White }
+
+    [DataContract]
+    public sealed class AnimationPreference
+    {
+        [DataMember] public AnimationEffect Effect;
+        [DataMember] public int Speed;
+        [DataMember] public int Intensity;
+        [DataMember] public bool RandomPalette;
+        public AnimationPreference Clone() { return (AnimationPreference)MemberwiseClone(); }
+    }
     // Numeric values 4, 5 and 9 preserve profiles created by v0.2.0.
     public enum AnimationEffect { Colorloop = 4, Rainbow = 5, FireFlicker = 9, Loading = 47 }
 
@@ -47,6 +58,22 @@ namespace DIYAmbient.Core
         [DataMember(IsRequired = true)] public LightingMode Mode;
         [DataMember(IsRequired = true)] public double Brightness;
         [DataMember(IsRequired = true)] public int TelemetryLedCount;
+        [DataMember(IsRequired = false)] public bool TelemetryEffectsInitialized;
+        [DataMember(IsRequired = false)] public bool TelemetrySpotterEnabled;
+        [DataMember] public SpotterColor SpotterColor;
+        [DataMember] public List<AnimationPreference> AnimationPreferences;
+        [DataMember(IsRequired = false)] public bool TelemetryYellowEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryBlueEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryGreenEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryWhiteEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryBlackEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryOrangeEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryCheckeredEnabled;
+        [DataMember(IsRequired = false)] public bool DrivingEffectsInitialized;
+        [DataMember(IsRequired = false)] public bool TelemetryAbsEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryTcEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryWheelLockEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryRpmEnabled;
         [DataMember(IsRequired = true)] public byte SolidR;
         [DataMember(IsRequired = true)] public byte SolidG;
         [DataMember(IsRequired = true)] public byte SolidB;
@@ -67,7 +94,8 @@ namespace DIYAmbient.Core
             ElectricalConfirmed = true; KeepOnAfterExit = false; LedStripCount = 3;
             StartEnabled = true; StartEnabledPreferenceInitialized = true;
             Mode = LightingMode.White; Brightness = 0.25;
-            TelemetryLedCount = 0; SolidR = 255; SolidG = 180; SolidB = 90;
+            TelemetryLedCount = 0; InitializeTelemetryEffects();
+            SolidR = 255; SolidG = 180; SolidB = 90;
             AnimationEffect = AnimationEffect.Colorloop; AnimationSpeed = 128; AnimationIntensity = 128;
             AnimationRandomPalette = true; AnimationPaletteInitialized = true;
             Warmth = 0; Tint = 0;
@@ -84,18 +112,7 @@ namespace DIYAmbient.Core
 
         public static IEnumerable<LedZone> DefaultZones(DisplayMap display)
         {
-            int count = display.LastLed - display.FirstLed + 1;
-            for (int i = 0; i < count; i++)
-            {
-                // A starting perimeter only: the real physical route is set in the editor.
-                double t = 4.0 * i / count, x, y;
-                if (t < 1) { x = t * .88; y = 0; }
-                else if (t < 2) { x = .88; y = (t - 1) * .88; }
-                else if (t < 3) { x = (3 - t) * .88; y = .88; }
-                else { x = 0; y = (4 - t) * .88; }
-                yield return new LedZone { Led = display.FirstLed + i, DeviceName = display.DeviceName,
-                    X = x, Y = y, Width = .12, Height = .12 };
-            }
+            return ZoneLayout.CenteredStrips(display);
         }
 
         [OnDeserialized]
@@ -107,11 +124,52 @@ namespace DIYAmbient.Core
             if (AnimationIntensity == 0) AnimationIntensity = 128;
             if (!Enum.IsDefined(typeof(AnimationEffect), AnimationEffect)) AnimationEffect = AnimationEffect.Colorloop;
             if (!AnimationPaletteInitialized) { AnimationRandomPalette = true; AnimationPaletteInitialized = true; }
+            if (!TelemetryEffectsInitialized) InitializeTelemetryEffects();
+            if (!DrivingEffectsInitialized) InitializeDrivingEffects();
+            if (TelemetryRpmEnabled) { Mode = LightingMode.Rpm; TelemetryRpmEnabled = false; }
+        }
+
+        public void RememberAnimation()
+        {
+            if (AnimationPreferences == null) AnimationPreferences = new List<AnimationPreference>();
+            AnimationPreference entry = AnimationPreferences.FirstOrDefault(p => p.Effect == AnimationEffect);
+            if (entry == null) { entry = new AnimationPreference { Effect = AnimationEffect }; AnimationPreferences.Add(entry); }
+            entry.Speed = AnimationSpeed; entry.Intensity = AnimationIntensity; entry.RandomPalette = AnimationRandomPalette;
+        }
+
+        public void SelectAnimation(AnimationEffect effect)
+        {
+            RememberAnimation();
+            var entry = AnimationPreferences.FirstOrDefault(p => p.Effect == effect);
+            AnimationEffect = effect;
+            AnimationSpeed = entry != null ? entry.Speed : effect == AnimationEffect.Loading ? 136 : 128;
+            AnimationIntensity = entry != null ? entry.Intensity : effect == AnimationEffect.Loading ? 91 : 128;
+            AnimationRandomPalette = entry == null || entry.RandomPalette;
+        }
+
+        private void InitializeTelemetryEffects()
+        {
+            // Preserve the existing feature set and add the requested green flag.
+            // Less universal flags remain opt-in because support varies by game.
+            TelemetrySpotterEnabled = true; TelemetryYellowEnabled = true;
+            TelemetryBlueEnabled = true; TelemetryGreenEnabled = true;
+            TelemetryWhiteEnabled = false; TelemetryBlackEnabled = false;
+            TelemetryOrangeEnabled = false; TelemetryCheckeredEnabled = false;
+            TelemetryEffectsInitialized = true;
+            InitializeDrivingEffects();
+        }
+
+        private void InitializeDrivingEffects()
+        {
+            TelemetryAbsEnabled = true; TelemetryTcEnabled = true;
+            TelemetryWheelLockEnabled = true; TelemetryRpmEnabled = false;
+            DrivingEffectsInitialized = true;
         }
 
         public Settings Clone()
         {
             Settings s = (Settings)MemberwiseClone();
+            s.AnimationPreferences = AnimationPreferences == null ? null : AnimationPreferences.Select(p => p.Clone()).ToList();
             s.Displays = Displays.Select(d => d.Clone()).ToList();
             s.Zones = Zones.Select(z => z.Clone()).ToList();
             return s;
@@ -120,6 +178,11 @@ namespace DIYAmbient.Core
         public void Validate()
         {
             Require(SchemaVersion == 1, "Version de configuration inconnue.");
+            Require(Enum.IsDefined(typeof(SpotterColor), SpotterColor), "Couleur spotter invalide.");
+            Require(AnimationPreferences == null || (AnimationPreferences.Count <= 4 &&
+                AnimationPreferences.All(p => p != null && Enum.IsDefined(typeof(AnimationEffect), p.Effect) &&
+                p.Speed >= 1 && p.Speed <= 255 && p.Intensity >= 1 && p.Intensity <= 255) &&
+                AnimationPreferences.Select(p => p.Effect).Distinct().Count() == AnimationPreferences.Count), "Réglages d'animation invalides.");
             Require(Enum.IsDefined(typeof(LightingMode), Mode), "Mode inconnu.");
             Require(Enum.IsDefined(typeof(AnimationEffect), AnimationEffect), "Animation inconnue.");
             Require(AnimationSpeed >= 1 && AnimationSpeed <= 255, "Vitesse d'animation invalide.");

@@ -34,6 +34,11 @@ $csc = Join-Path $framework 'csc.exe'
 $stagedDll = Join-Path $staged 'DIYAmbient.Plugin.dll'
 $lines = @('/nologo', '/target:library', '/platform:anycpu', '/langversion:5', '/warn:4', '/optimize+', '/codepage:65001', "/out:`"$stagedDll`"")
 $lines += Get-ReferenceArguments $framework @('System.dll', 'System.Core.dll', 'System.Drawing.dll', 'System.Windows.Forms.dll', 'System.Runtime.Serialization.dll', 'System.Xml.dll', 'System.Xaml.dll', 'WindowsBase.dll', 'PresentationCore.dll', 'PresentationFramework.dll')
+$lines += Get-ReferenceArguments $framework @('System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll')
+foreach ($name in @('Adalight_WS2812.ino')) {
+    $firmwareSource = Join-Path $root "firmware\Adalight_WS2812\$name"
+    $lines += "/resource:`"$firmwareSource`",DIYAmbient.Firmware.$name"
+}
 $hostAssemblies = @()
 foreach ($name in @('GameReaderCommon.dll', 'SimHub.Plugins.dll', 'InputManagerCS.dll', 'SimHub.Logging.dll', 'log4net.dll', 'MahApps.Metro.dll', 'Newtonsoft.Json.dll')) {
     $file = Join-Path $SimHubPath $name

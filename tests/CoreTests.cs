@@ -26,7 +26,11 @@ internal static class CoreTests
     { var s = new Settings(); s.Brightness = 1; s.CurrentBudgetAmps = 15; return s; }
     private static Rgb[] Fill(Rgb color) { return Enumerable.Repeat(color, 60).ToArray(); }
     private static FrameResult Compose(Settings s, bool enabled, TelemetrySnapshot t)
-    { return FrameComposer.Compose(s, enabled, null, t, new TelemetrySelection(s), DateTime.UtcNow, 0); }
+    {
+        DateTime now = DateTime.UtcNow;
+        while (!FrameComposer.TelemetryBlinkOn(now)) now = now.AddMilliseconds(50);
+        return FrameComposer.Compose(s, enabled, null, t, new TelemetrySelection(s), now, 0);
+    }
     private static FrameResult ComposeAt(Settings s, DateTime now, TelemetrySnapshot t)
     { return FrameComposer.Compose(s, true, null, t, new TelemetrySelection(s), now, 0); }
 
@@ -50,6 +54,10 @@ internal static class CoreTests
                 var s = new Settings(); s.Validate(); Check(!s.PreviewOnly && s.ElectricalConfirmed, "Unexpected output mode");
                 Check(s.CurrentBudgetAmps == 15.0 && s.LedStripCount == 3 && !s.KeepOnAfterExit && s.StartEnabled && s.StartEnabledPreferenceInitialized, "Unexpected power or shutdown default");
                 Equal(s.TelemetryLedCount, 0, "Default telemetry");
+                Check(s.TelemetrySpotterEnabled && s.TelemetryYellowEnabled && s.TelemetryBlueEnabled && s.TelemetryGreenEnabled,
+                    "Expected telemetry defaults are disabled");
+                Check(s.TelemetryAbsEnabled && s.TelemetryTcEnabled && s.TelemetryWheelLockEnabled && !s.TelemetryRpmEnabled,
+                    "Unexpected driving effect defaults");
             });
             Test("Existing display ranges", () => {
                 var s = new Settings();
@@ -63,6 +71,8 @@ internal static class CoreTests
                     s.TelemetryLedCount = n; var selection = new TelemetrySelection(s);
                     Equal(selection.Left.Length, n / 2, "Left"); Equal(selection.Right.Length, n / 2, "Right");
                     Equal(selection.Left.Intersect(selection.Right).Count(), 0, "No overlap");
+                    Check(selection.Left.SequenceEqual(Enumerable.Range(1, n / 2)), "Left is not the physical start");
+                    Check(selection.Right.SequenceEqual(Enumerable.Range(61 - n / 2, n / 2).Reverse()), "Right is not the physical end");
                 }
             });
             Test("Odd telemetry counts rejected", () => { var s = new Settings(); s.TelemetryLedCount = 11; Reject(s.Validate); });
@@ -73,7 +83,29 @@ internal static class CoreTests
             Test("Out-of-screen rectangle rejected", () => { var s = new Settings(); s.Zones[0].X = .99; Reject(s.Validate); });
             Test("NaN brightness rejected", () => { var s = new Settings(); s.Brightness = double.NaN; Reject(s.Validate); });
             Test("Unknown schema rejected", () => { var s = new Settings(); s.SchemaVersion = 2; Reject(s.Validate); });
-            Test("Clone is independent", () => { var a = new Settings(); var b = a.Clone(); b.Zones[0].X = .5; Check(a.Zones[0].X == 0, "Aliased zones"); });
+            Test("Clone is independent", () => { var a = new Settings(); double originalX = a.Zones[0].X; var b = a.Clone(); b.Zones[0].X = .5; Check(a.Zones[0].X == originalX, "Aliased zones"); });
+            Test("Triple screen template uses identical centered reference strips", () => {
+                var s = new Settings(); s.Validate();
+                foreach (var display in s.Displays) {
+                    var strips = s.Zones.Where(z => z.DeviceName == display.DeviceName).OrderBy(z => z.Led).ToArray();
+                    Check(strips.All(z => z.Width == ZoneLayout.StripWidth && z.Height == ZoneLayout.StripHeight), "Reference dimensions changed");
+                    Check(Math.Abs(strips[0].X + strips[19].X + strips[19].Width - 1) < 1e-10, "Group not centered");
+                    Check(Math.Abs(strips[0].Y * 2 + strips[0].Height - 1) < 1e-10, "Wrong vertical center");
+                    for (int i = 1; i < strips.Length; i++) Check(strips[i].X >= strips[i-1].X + strips[i-1].Width && strips[i].Y == strips[0].Y, "Overlap or misalignment");
+                }
+            });
+            Test("Group dragging preserves spacing dimensions and unselected zones at every edge", () => {
+                var s = new Settings(); var moving = s.Zones.Take(5).ToList(); var origins = moving.Select(z => z.Clone()).ToList();
+                double unselectedX = s.Zones[5].X;
+                foreach (double delta in new[] { -2.0, .1, 2.0 }) {
+                    ZoneLayout.MoveGroup(moving, origins, delta, delta); s.Validate();
+                    for (int i = 0; i < moving.Count; i++) {
+                        Check(Math.Abs((moving[i].X - moving[0].X) - (origins[i].X - origins[0].X)) < 1e-10, "Group spacing distorted");
+                        Check(moving[i].Width == origins[i].Width && moving[i].Height == origins[i].Height, "Drag resized strip");
+                    }
+                    Check(s.Zones[5].X == unselectedX, "Unselected strip moved");
+                }
+            });
             Test("Configuration JSON roundtrip", () => {
                 var s = new Settings(); s.KeepOnAfterExit = true; s.StartEnabled = true; var serializer = new DataContractJsonSerializer(typeof(Settings));
                 using (var stream = new MemoryStream()) {
@@ -181,7 +213,9 @@ internal static class CoreTests
             });
             Test("Telemetry overrides an animated background only on selected LEDs", () => {
                 var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Rainbow; s.TelemetryLedCount = 10;
-                DateTime now = DateTime.UtcNow; var background = ComposeAt(s, now, TelemetrySnapshot.Empty);
+                DateTime now = DateTime.UtcNow;
+                while (!FrameComposer.TelemetryBlinkOn(now)) now = now.AddMilliseconds(50);
+                var background = ComposeAt(s, now, TelemetrySnapshot.Empty);
                 var alert = ComposeAt(s, now, new TelemetrySnapshot(true, true, false, false, false, now));
                 var selected = new TelemetrySelection(s).Left;
                 Check(selected.All(i => alert.Colors[i - 1].R == 255 && alert.Colors[i - 1].G == 0), "Alert missing");
@@ -189,8 +223,127 @@ internal static class CoreTests
             });
             Test("Yellow flag paints exactly the selected telemetry LEDs", () => {
                 var s = Full(); s.TelemetryLedCount = 10;
-                var yellow = Compose(s, true, new TelemetrySnapshot(true, false, false, true, false, DateTime.UtcNow));
+                DateTime on = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                while (!FrameComposer.TelemetryBlinkOn(on)) on = on.AddMilliseconds(500);
+                var telemetry = new TelemetrySnapshot(true, false, false, true, false, on);
+                var yellow = ComposeAt(s, on, telemetry);
+                var off = ComposeAt(s, on.AddMilliseconds(FrameComposer.TelemetryBlinkHalfPeriodMilliseconds), telemetry);
                 Equal(yellow.Colors.Count(c => c.R == 255 && c.G == 160 && c.B == 0), 10, "Yellow LEDs");
+                Check(off.Colors.All(c => c.R == 255 && c.G == 255 && c.B == 255), "Yellow flag does not blink off");
+            });
+            Test("Green flag blinks slower than yellow", () => {
+                var s = Full(); s.TelemetryLedCount = 10;
+                DateTime on = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                while (!FrameComposer.TelemetryBlinkOn(on) || !FrameComposer.TelemetryBlinkOn(on, FrameComposer.GreenFlagBlinkHalfPeriodMilliseconds) ||
+                    !FrameComposer.TelemetryBlinkOn(on.AddMilliseconds(500), FrameComposer.GreenFlagBlinkHalfPeriodMilliseconds)) on = on.AddMilliseconds(500);
+                var green = new TelemetrySnapshot(true, false, false, false, false, true, false, false, false, false, on);
+                var yellow = new TelemetrySnapshot(true, false, false, true, false, false, false, false, false, false, on);
+                Check(ComposeAt(s, on.AddMilliseconds(250), green).Colors.Count(c => c.G == 255 && c.R == 0) == 10, "Green switched off too quickly");
+                Check(ComposeAt(s, on.AddMilliseconds(250), yellow).Colors.All(c => c.R == 255 && c.G == 255), "Yellow did not switch off first");
+            });
+            Test("Telemetry effect selection disables an unwanted flag", () => {
+                var s = Full(); s.TelemetryLedCount = 10; s.TelemetryYellowEnabled = false;
+                DateTime now = DateTime.UtcNow; while (!FrameComposer.TelemetryBlinkOn(now)) now = now.AddMilliseconds(50);
+                var yellow = new TelemetrySnapshot(true, false, false, true, false, now);
+                Check(ComposeAt(s, now, yellow).Colors.All(c => c.R == 255 && c.G == 255 && c.B == 255), "Disabled yellow flag is still visible");
+            });
+            Test("Telemetry starts lit immediately and preserves independent blink phases", () => {
+                var now = new DateTime(2026, 9, 20, 12, 0, 1, 300, DateTimeKind.Utc);
+                Check(!FrameComposer.TelemetryBlinkOn(now), "Test must begin inside old OFF phase");
+                var s = Full(); s.TelemetryLedCount = 10;
+                var left = new TelemetrySnapshot(true, true, false, false, false, now).WithTiming(null);
+                Check(left.BlinkOn(TelemetryEffect.SpotterLeft, now, 250), "New event waited for global phase");
+                var next = new TelemetrySnapshot(true, true, true, false, false, now.AddMilliseconds(300)).WithTiming(left);
+                Check(!next.BlinkOn(TelemetryEffect.SpotterLeft, next.TimestampUtc, 250), "Held event restarted");
+                Check(next.BlinkOn(TelemetryEffect.SpotterRight, next.TimestampUtc, 250), "New right event did not start lit");
+                var frame = ComposeAt(s, next.TimestampUtc, next).Colors;
+                Check(frame.Take(5).All(c => c.G == 255), "Left should be in OFF phase");
+                Check(frame.Skip(55).All(c => c.R == 255 && c.G == 0 && c.B == 0), "Right should be immediately lit");
+                var cleared = new TelemetrySnapshot(true, false, false, false, false, now.AddMilliseconds(310)).WithTiming(next);
+                var restarted = new TelemetrySnapshot(true, true, false, false, false, now.AddMilliseconds(320)).WithTiming(cleared);
+                Check(restarted.BlinkOn(TelemetryEffect.SpotterLeft, restarted.TimestampUtc, 250), "Reappearing event did not restart");
+                var green = new TelemetrySnapshot(true, false, false, false, false, true, false, false, false, false, now).WithTiming(null);
+                Check(green.BlinkOn(TelemetryEffect.Green, now, 1000), "Green starts dark");
+                Check(!green.BlinkOn(TelemetryEffect.Green, now.AddMilliseconds(1000), 1000), "Green period changed");
+            });
+            Test("White flag remains steady and removed flags do not render", () => {
+                var s = Full(); s.TelemetryLedCount = 10; s.Mode = LightingMode.Solid; s.SolidR = 12; s.SolidG = 20; s.SolidB = 30;
+                s.TelemetryWhiteEnabled = true;
+                var start = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                foreach (int ms in new[] { 0, 250, 500, 750 }) {
+                    DateTime now = start.AddMilliseconds(ms);
+                    var flag = new TelemetrySnapshot(true, false, false, false, false, false, true, false, false, false, now);
+                    Equal(ComposeAt(s, now, flag).Colors.Count(c => c.R == 255 && c.G == 255 && c.B == 255), 10, "White must be steady");
+                }
+                s.TelemetryBlackEnabled = s.TelemetryOrangeEnabled = s.TelemetryCheckeredEnabled = true;
+                var removed = new TelemetrySnapshot(true, false, false, false, false, false, false, true, true, true, start);
+                Check(ComposeAt(s, start, removed).Colors.All(c => c.R == 12), "Removed flags still render");
+            });
+            Test("ABS TC and wheel lock have distinct alerts", () => {
+                var s = Full(); s.TelemetryLedCount = 10;
+                DateTime now = DateTime.UtcNow; while (!FrameComposer.TelemetryBlinkOn(now)) now = now.AddMilliseconds(25);
+                var abs = new TelemetrySnapshot(true, false, false, false, false, false, false, false, false, false, true, false, false, 0, now);
+                var tc = new TelemetrySnapshot(true, false, false, false, false, false, false, false, false, false, false, true, false, 0, now);
+                var wheel = new TelemetrySnapshot(true, false, false, false, false, false, false, false, false, false, false, false, true, 0, now);
+                Equal(ComposeAt(s, now, abs).Colors.Count(c => c.R == 255 && c.G == 70 && c.B == 0), 10, "ABS orange LEDs");
+                Equal(ComposeAt(s, now, tc).Colors.Count(c => c.R == 210 && c.G == 0 && c.B == 255), 10, "TC LEDs");
+                Equal(ComposeAt(s, now, wheel).Colors.Count(c => c.R == 255 && c.G == 0 && c.B == 0), 10, "Wheel lock LEDs");
+            });
+            Test("RPM mode covers all LEDs and flashes red at 100 percent", () => {
+                var s = Full(); s.Mode = LightingMode.Rpm; s.TelemetryLedCount = 0;
+                DateTime start = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                foreach (double percent in new[] { 0.0, 25.0, 75.0, 100.0 }) {
+                    var t = new TelemetrySnapshot(true, false, false, false, false, false, false, false, false, false, false, false, false, percent, start);
+                    var frame = ComposeAt(s, start, t).Colors;
+                    Equal(frame.Select(c => c.ToString()).Distinct().Count(), 1, "RPM must be uniform");
+                    if (percent == 0) Check(frame.All(c => c.R + c.G + c.B == 0), "Zero RPM not black");
+                    if (percent == 100) {
+                        Check(frame.All(c => c.R == 255 && c.G == 0 && c.B == 0), "Redline not red");
+                        Check(ComposeAt(s, start.AddMilliseconds(250), t).Colors.All(c => c.R + c.G + c.B == 0), "Redline does not flash");
+                    }
+                    Check(ComposeAt(s, start.AddSeconds(2), t).Colors.All(c => c.R + c.G + c.B == 0), "Stale RPM not black");
+                }
+            });
+            Test("Animation sliders survive switching cloning and JSON reload", () => {
+                var s = Full(); s.AnimationSpeed = 31; s.AnimationIntensity = 44; s.RememberAnimation();
+                s.SelectAnimation(AnimationEffect.Loading); s.AnimationSpeed = 201; s.AnimationIntensity = 73; s.AnimationRandomPalette = false; s.RememberAnimation();
+                s.SelectAnimation(AnimationEffect.Colorloop); Equal(s.AnimationSpeed, 31, "Colorloop speed");
+                s = s.Clone();
+                using (var stream = new MemoryStream()) {
+                    var serializer = new DataContractJsonSerializer(typeof(Settings));
+                    serializer.WriteObject(stream, s); stream.Position = 0; s = (Settings)serializer.ReadObject(stream);
+                }
+                s.Validate(); s.SelectAnimation(AnimationEffect.Loading);
+                Equal(s.AnimationSpeed, 201, "Loading speed"); Equal(s.AnimationIntensity, 73, "Loading intensity");
+                Check(!s.AnimationRandomPalette, "Random preference reset");
+            });
+            Test("Spotter palette overrides only the requested side", () => {
+                var s = Full(); s.TelemetryLedCount = 10; s.SpotterColor = SpotterColor.Pink;
+                var now = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                var t = new TelemetrySnapshot(true, true, false, false, false, now);
+                var frame = ComposeAt(s, now, t).Colors;
+                Check(frame.Take(5).All(c => c.R == 255 && c.G == 0 && c.B == 120), "Spotter color ignored");
+                Check(frame.Skip(5).All(c => c.R == 255 && c.G == 255 && c.B == 255), "Other LEDs changed");
+            });
+            Test("Manual spotter test works when disabled without changing saved preferences", () => {
+                var s = Full(); s.TelemetryLedCount = 10; s.TelemetrySpotterEnabled = false; s.SpotterColor = SpotterColor.Orange;
+                var now = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                foreach (bool left in new[] { true, false }) {
+                    var test = TelemetryTestSettings.ForEffect(s, left ? TelemetryEffect.SpotterLeft : TelemetryEffect.SpotterRight);
+                    var t = new TelemetrySnapshot(true, left, !left, false, false, now);
+                    var frame = ComposeAt(test, now, t).Colors;
+                    Check((left ? frame.Take(5) : frame.Skip(55)).All(c => c.R == 255 && c.G == 70 && c.B == 0), "Test missing from correct end");
+                    Check(ComposeAt(test, now.AddMilliseconds(250), t).Colors.All(c => c.R == 255 && c.G == 255), "Test must blink");
+                    Check(!s.TelemetrySpotterEnabled, "Saved preference was changed");
+                    Check(FrameComposer.Compose(test, false, null, t, new TelemetrySelection(test), now, 0).Colors.All(c => c.R == 0 && c.G == 0 && c.B == 0), "Test bypassed OFF");
+                    test.Brightness = 0;
+                    Check(ComposeAt(test, now, t).Colors.All(c => c.R == 0 && c.G == 0 && c.B == 0), "Test bypassed brightness");
+                }
+            });
+            Test("Wheel lock detector requires braking speed and a slow wheel", () => {
+                Check(TelemetryMath.WheelLock(.8, 20, new[] { 20.0, 20.0, 2.0, 20.0 }), "Locked wheel missed");
+                Check(!TelemetryMath.WheelLock(.1, 20, new[] { 20.0, 20.0, 2.0, 20.0 }), "Lock without braking");
+                Check(!TelemetryMath.WheelLock(.8, 20, new[] { 18.0, 19.0, 20.0, 21.0 }), "Normal wheel speed treated as lock");
             });
             Test("Brightness remains effective below a limited maximum", () => {
                 var s = Full(); s.CurrentBudgetAmps = .5;
@@ -213,6 +366,26 @@ internal static class CoreTests
                 var zone = new LedZone { X = .5, Y = 0, Width = .5, Height = 1 };
                 var c = ZoneSampler.Average(data, 2, 1, 8, zone);
                 Equal(c.R, 0, "R"); Equal(c.B, 255, "B");
+            });
+            Test("Capture pacing includes work time without a busy loop", () => {
+                Equal(CapturePacing.RemainingMilliseconds(0), 34, "Empty capture");
+                Equal(CapturePacing.RemainingMilliseconds(13), 21, "Fast capture");
+                Equal(CapturePacing.RemainingMilliseconds(50), 1, "Slow capture");
+                Equal(CapturePacing.RemainingMilliseconds(long.MaxValue), 1, "Overflow");
+                Equal(CapturePacing.RemainingMilliseconds(-1), 34, "Negative clock");
+            });
+            Test("Cropped capture preserves full-image sampling coordinates", () => {
+                var random = new Random(812); byte[] full = new byte[80 * 40 * 4]; random.NextBytes(full);
+                byte[] crop = new byte[30 * 20 * 4];
+                for (int y = 0; y < 20; y++) Array.Copy(full, ((y + 10) * 80 + 20) * 4, crop, y * 30 * 4, 30 * 4);
+                for (int n = 0; n < 100; n++) {
+                    var zone = new LedZone { X = (22 + random.Next(15)) / 80.0, Y = (12 + random.Next(9)) / 40.0, Width = 5 / 80.0, Height = 5 / 40.0 };
+                    var expected = ZoneSampler.Average(full, 80, 40, 320, zone);
+                    var actual = ZoneSampler.AverageCropped(crop, 30, 20, 120, zone, 80, 40, 20, 10);
+                    Check(actual.R == expected.R && actual.G == expected.G && actual.B == expected.B, "Crop shifted a zone");
+                }
+                Reject(() => ZoneSampler.AverageCropped(crop, 30, 20, 120, new LedZone { X = 0, Y = 0, Width = 1, Height = 1 }, 80, 40, 20, 10));
+                Reject(() => ZoneSampler.AverageCropped(crop, 30, 20, 120, new LedZone(), 80, 40, int.MaxValue, 0));
             });
             Test("Regression: spotter never brightens unrelated white LEDs", () => {
                 var s = Full(); s.CurrentBudgetAmps = .5; s.TelemetryLedCount = 10;
@@ -277,6 +450,13 @@ internal static class CoreTests
                 var s = Full(); s.TelemetryLedCount = 20; var before = new TelemetrySelection(s);
                 s.Zones.Reverse(); s.Displays.Reverse(); var after = new TelemetrySelection(s);
                 Check(before.Left.SequenceEqual(after.Left) && before.Right.SequenceEqual(after.Right), "Unstable routing");
+            });
+            Test("Telemetry routing ignores graphical zone placement", () => {
+                var s = Full(); s.TelemetryLedCount = 10;
+                foreach (var zone in s.Zones) { zone.X = (zone.Led * 17 % 90) / 100.0; zone.Y = (zone.Led * 29 % 90) / 100.0; zone.Width = .05; zone.Height = .05; }
+                var selection = new TelemetrySelection(s);
+                Check(selection.Left.SequenceEqual(new[] { 1, 2, 3, 4, 5 }), "Wrong left physical end");
+                Check(selection.Right.SequenceEqual(new[] { 60, 59, 58, 57, 56 }), "Wrong right physical end");
             });
             Test("Left roles override Windows display number", () => {
                 var s = Full(); s.TelemetryLedCount = 10;

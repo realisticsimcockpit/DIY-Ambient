@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Navigation;
@@ -27,6 +29,11 @@ namespace DIYAmbient.Plugin
         private readonly StackPanel solidPalette, whiteControls, animationControls;
         private readonly ComboBox animationEffect;
         private readonly CheckBox randomPalette;
+        private readonly CheckBox telemetrySpotter, telemetryYellow, telemetryBlue, telemetryGreen;
+        private readonly CheckBox telemetryWhite;
+        private readonly CheckBox telemetryAbs, telemetryTc, telemetryWheelLock;
+        private readonly ComboBox telemetryTestEffect, spotterColor;
+        private static readonly TelemetryEffect[] TestEffects = { TelemetryEffect.SpotterLeft, TelemetryEffect.SpotterRight, TelemetryEffect.Yellow, TelemetryEffect.Blue, TelemetryEffect.Green, TelemetryEffect.White, TelemetryEffect.Abs, TelemetryEffect.Tc, TelemetryEffect.WheelLock };
         private readonly ComboBox port;
         private readonly ComboBox stripCount;
         private readonly ComboBox profileName;
@@ -42,6 +49,8 @@ namespace DIYAmbient.Plugin
         internal SettingsControl(AmbientPlugin owner)
         {
             plugin = owner;
+            Foreground = Brushes.White;
+            ApplyDarkStyles();
             Language = XmlLanguage.GetLanguage("fr-FR");
             var root = new StackPanel { Margin = new Thickness(24), MaxWidth = 920, HorizontalAlignment = HorizontalAlignment.Left };
             Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -58,6 +67,16 @@ namespace DIYAmbient.Plugin
             if (!string.IsNullOrEmpty(plugin.StartupWarning)) root.Children.Add(Note(plugin.StartupWarning));
             enabled = new CheckBox { Content = "Éclairage activé", Margin = new Thickness(0, 18, 0, 12), FontSize = 17 };
             root.Children.Add(enabled);
+            var installation = new StackPanel { Margin = new Thickness(12) };
+            var personalization = new StackPanel { Margin = new Thickness(12) };
+            var firmware = new StackPanel { Margin = new Thickness(12) };
+            var tabs = new TabControl { Margin = new Thickness(0, 6, 0, 0) };
+            tabs.Items.Add(new TabItem { Header = "Installation", Content = installation });
+            tabs.Items.Add(new TabItem { Header = "Personnalisation", Content = personalization });
+            tabs.Items.Add(new TabItem { Header = "Firmware", Content = firmware });
+            tabs.SelectedIndex = 1;
+            root.Children.Add(tabs);
+            root = personalization;
             installationWorking = plugin.GetSettings();
             var connection = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
             connection.Children.Add(new TextBlock { Text = "Port", Width = 42, VerticalAlignment = VerticalAlignment.Center });
@@ -69,13 +88,13 @@ namespace DIYAmbient.Plugin
             stripCount.Items.Add("3 × 60 LED — 180 LED");
             stripCount.Items.Add("5 × 60 LED — 300 LED");
             connection.Children.Add(stripCount);
-            root.Children.Add(connection);
+            installation.Children.Add(connection);
             keepOnExit = new CheckBox { Content = "Garder la dernière couleur après fermeture de SimHub / arrêt du PC",
                 IsChecked = installationWorking.KeepOnAfterExit,
                 Margin = new Thickness(0, 0, 0, 8) };
-            root.Children.Add(keepOnExit);
+            installation.Children.Add(keepOnExit);
             mode = new ComboBox { Width = 390, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 16) };
-            mode.Items.Add("Blanc fixe"); mode.Items.Add("Couleur fixe"); mode.Items.Add("Image des 3 écrans — SDR expérimental"); mode.Items.Add("Animations inspirées de WLED");
+            mode.Items.Add("Blanc fixe"); mode.Items.Add("Couleur fixe"); mode.Items.Add("Image des 3 écrans — SDR expérimental"); mode.Items.Add("Animations inspirées de WLED"); mode.Items.Add("RPM");
             root.Children.Add(mode);
             solidPalette = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
             solidPalette.Children.Add(Note("Palette de couleur fixe"));
@@ -101,7 +120,7 @@ namespace DIYAmbient.Plugin
             whiteControls.Children.Add(tint);
             root.Children.Add(whiteControls);
             animationControls = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
-            animationControls.Children.Add(Note("Animation 1D compatible avec les 60 LED"));
+            animationControls.Children.Add(Note("Animation"));
             animationEffect = new ComboBox { Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
             foreach (string name in new[] { "Colorloop", "Rainbow", "Fire Flicker", "Loading" })
                 animationEffect.Items.Add(name);
@@ -122,8 +141,29 @@ namespace DIYAmbient.Plugin
             alerts = new Slider { Minimum = 0, Maximum = 60, TickFrequency = 2, IsSnapToTickEnabled = true, Width = 520 };
             root.Children.Add(alerts);
             root.Children.Add(Note("0 désactive les alertes. Hors alerte, toutes les LED retrouvent le fond choisi."));
-            root.Children.Add(Button("Tester drapeau jaune · 3 s", () => plugin.Engine.TestYellowFlag()));
-            root.Children.Add(new TextBlock { Text = "Écrans", FontSize = 18, Margin = new Thickness(0, 14, 0, 4) });
+            root.Children.Add(Note("Effets de télémétrie actifs"));
+            var telemetryChoices = new WrapPanel { MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left };
+            telemetrySpotter = TelemetryChoice("Spotter gauche / droite", telemetryChoices);
+            telemetryYellow = TelemetryChoice("Drapeau jaune", telemetryChoices);
+            telemetryBlue = TelemetryChoice("Drapeau bleu", telemetryChoices);
+            telemetryGreen = TelemetryChoice("Drapeau vert", telemetryChoices);
+            telemetryWhite = TelemetryChoice("Drapeau blanc", telemetryChoices);
+            telemetryAbs = TelemetryChoice("ABS actif", telemetryChoices);
+            telemetryTc = TelemetryChoice("TC actif", telemetryChoices);
+            telemetryWheelLock = TelemetryChoice("Blocage des roues", telemetryChoices);
+            root.Children.Add(telemetryChoices);
+            root.Children.Add(Note("Couleur du spotter"));
+            spotterColor = new ComboBox { Width = 230, HorizontalAlignment = HorizontalAlignment.Left };
+            foreach (string name in new[] { "Rouge", "Orange", "Violet", "Rose", "Blanc" }) spotterColor.Items.Add(name);
+            root.Children.Add(spotterColor);
+            var telemetryTest = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 8) };
+            telemetryTestEffect = new ComboBox { Width = 230, SelectedIndex = 2 };
+            foreach (string name in new[] { "Spotter gauche", "Spotter droite", "Drapeau jaune", "Drapeau bleu", "Drapeau vert", "Drapeau blanc", "ABS actif", "TC actif", "Blocage des roues" })
+                telemetryTestEffect.Items.Add(name);
+            telemetryTest.Children.Add(telemetryTestEffect);
+            telemetryTest.Children.Add(Button("Tester l'effet · 3 s", TestTelemetry));
+            root.Children.Add(telemetryTest);
+            installation.Children.Add(new TextBlock { Text = "Écrans", FontSize = 18, Margin = new Thickness(0, 14, 0, 4) });
             MonitorInfo[] available = MonitorInfo.Enumerate();
             string[] roles = { "Gauche", "Centre", "Droite" };
             for (int i = 0; i < 3; i++)
@@ -141,9 +181,9 @@ namespace DIYAmbient.Plugin
                 last[i] = new TextBox { Width = 40, Text = map.LastLed.ToString(), Margin = new Thickness(4, 0, 8, 0) };
                 row.Children.Add(first[i]); row.Children.Add(new TextBlock { Text = "à", VerticalAlignment = VerticalAlignment.Center }); row.Children.Add(last[i]);
                 row.Children.Add(Button("Configurer les zones", () => EditZones(index)));
-                root.Children.Add(row);
+                installation.Children.Add(row);
             }
-            root.Children.Add(Button("Enregistrer la connexion et les écrans", SaveInstallation));
+            installation.Children.Add(Button("Enregistrer la connexion et les écrans", SaveInstallation));
             root.Children.Add(new TextBlock { Text = "Profils de jeu", FontSize = 18, Margin = new Thickness(0, 14, 0, 4) });
             activeGameLabel = Note(""); root.Children.Add(activeGameLabel);
             profileName = new ComboBox { IsEditable = true, Width = 280, HorizontalAlignment = HorizontalAlignment.Left };
@@ -154,12 +194,19 @@ namespace DIYAmbient.Plugin
             profileButtons.Children.Add(Button("Nom du jeu actif", UseActiveGameName));
             root.Children.Add(profileButtons);
             RefreshProfileNames();
+            AddFirmwareControls(firmware);
 
             LoadControls();
             enabled.Click += (s, e) => Guard(() => { plugin.SetOutputEnabled(enabled.IsChecked == true); Refresh(); });
             mode.SelectionChanged += (s, e) => Changed();
             brightness.ValueChanged += (s, e) => Changed();
             alerts.ValueChanged += (s, e) => Changed();
+            telemetrySpotter.Click += (s, e) => Changed(); telemetryYellow.Click += (s, e) => Changed();
+            telemetryBlue.Click += (s, e) => Changed(); telemetryGreen.Click += (s, e) => Changed();
+            telemetryWhite.Click += (s, e) => Changed();
+            spotterColor.SelectionChanged += (s, e) => Changed();
+            telemetryAbs.Click += (s, e) => Changed(); telemetryTc.Click += (s, e) => Changed();
+            telemetryWheelLock.Click += (s, e) => Changed();
             warmth.ValueChanged += (s, e) => Changed();
             tint.ValueChanged += (s, e) => Changed();
             animationEffect.SelectionChanged += (s, e) => AnimationEffectChanged();
@@ -183,6 +230,124 @@ namespace DIYAmbient.Plugin
 
         internal static TextBlock Note(string text)
         { return new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 7), MaxWidth = 840 }; }
+
+        private void ApplyDarkStyles()
+        {
+            var background = new SolidColorBrush(Color.FromRgb(38, 38, 38));
+            foreach (Type type in new[] { typeof(TabControl), typeof(TabItem), typeof(CheckBox), typeof(Button), typeof(ComboBox), typeof(ComboBoxItem), typeof(TextBox) })
+            {
+                var style = new Style(type, TryFindResource(type) as Style);
+                style.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+                style.Setters.Add(new Setter(Control.BackgroundProperty, background));
+                if (type == typeof(TabItem))
+                {
+                    style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(16, 8, 16, 8)));
+                    var border = new FrameworkElementFactory(typeof(Border));
+                    border.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = RelativeSource.TemplatedParent });
+                    border.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = RelativeSource.TemplatedParent });
+                    border.SetValue(Border.BorderThicknessProperty, new Thickness(0, 0, 0, 3));
+                    var label = new FrameworkElementFactory(typeof(ContentPresenter));
+                    label.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+                    label.SetBinding(FrameworkElement.MarginProperty, new Binding("Padding") { RelativeSource = RelativeSource.TemplatedParent });
+                    border.AppendChild(label);
+                    style.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(TabItem)) { VisualTree = border }));
+                    var selected = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
+                    selected.Setters.Add(new Setter(Control.BackgroundProperty, background));
+                    selected.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.SteelBlue));
+                    style.Triggers.Add(selected);
+                }
+                Resources[type] = style;
+            }
+            Resources[SystemColors.WindowBrushKey] = background;
+            Resources[SystemColors.WindowTextBrushKey] = Brushes.White;
+            Resources[SystemColors.ControlBrushKey] = background;
+            Resources[SystemColors.ControlTextBrushKey] = Brushes.White;
+        }
+
+        private void AddFirmwareControls(StackPanel root)
+        {
+            var content = root;
+            content.Children.Add(new TextBlock { Text = "Firmware Adalight / FastLED", FontSize = 20 });
+            content.Children.Add(Note("Base : ton firmware Adalight_WS2812 actuel, modifié pour l'extinction automatique. Dépôt GitHub privé : realisticsimcockpit/DIY-Ambient. GitHub CLI doit être connecté à un compte autorisé (gh auth login)."));
+            content.Children.Add(Note("EVO : démarrage au noir, extinction après 1 seconde sans trame complète. 60 LED WS2812, DATA D6, 115200 bauds. Le choix 3 ou 5 bandes reste géré par le plugin."));
+            content.Children.Add(Note("Carte indiquée : Nano. Vérifier ATmega328P et le bootloader ; les variantes WAVGAT ne sont pas toutes compatibles. Aucun flash automatique."));
+            var board = new ComboBox { Width = 400, HorizontalAlignment = HorizontalAlignment.Left, SelectedIndex = -1 };
+            foreach (string name in FirmwareFlasher.Boards) board.Items.Add(name);
+            content.Children.Add(Note("Modèle / bootloader (choix obligatoire pour compiler ou flasher)"));
+            content.Children.Add(board);
+            var statusText = Note("Aucune opération firmware en cours.");
+            FirmwareSource githubSource = null;
+            var sourceText = Note("Source embarquée disponible pour compiler hors ligne. Pour flasher : charger d'abord le firmware depuis GitHub.");
+            content.Children.Add(sourceText);
+            var detected = Note("");
+            content.Loaded += (s, e) => { if (plugin.Engine != null) detected.Text = plugin.Engine.FirmwareStatus; };
+            content.Children.Add(detected);
+            var confirmed = new CheckBox { Content = "J'ai vérifié la carte, le bootloader et DATA D6 ; autoriser le bouton de flash", Margin = new Thickness(0, 8, 0, 8), IsChecked = false };
+            content.Children.Add(confirmed);
+            var buttons = new WrapPanel(); content.Children.Add(buttons); content.Children.Add(statusText);
+            Action<string> report = message => Dispatcher.BeginInvoke(new Action(() => statusText.Text = message));
+            var prepare = new Button { Content = "Préparer les outils (Internet)", Margin = new Thickness(0, 4, 10, 4), Padding = new Thickness(12, 6, 12, 6) };
+            var download = new Button { Content = "Charger depuis GitHub", Margin = prepare.Margin, Padding = prepare.Padding };
+            var compile = new Button { Content = "Compiler sans flasher", Margin = prepare.Margin, Padding = prepare.Padding };
+            var flash = new Button { Content = "Flasher la carte…", Margin = prepare.Margin, Padding = prepare.Padding, IsEnabled = false };
+            buttons.Children.Add(prepare); buttons.Children.Add(download); buttons.Children.Add(compile); buttons.Children.Add(flash);
+            confirmed.Click += (s, e) => flash.IsEnabled = confirmed.IsChecked == true && board.SelectedIndex >= 0 && githubSource != null;
+            board.SelectionChanged += (s, e) => { confirmed.IsChecked = false; flash.IsEnabled = false; };
+            download.Click += async (s, e) =>
+            {
+                IsEnabled = false; githubSource = null; confirmed.IsChecked = false; flash.IsEnabled = false;
+                sourceText.Text = "Chargement du firmware GitHub…";
+                try
+                {
+                    githubSource = await Task.Run(() => FirmwareFlasher.DownloadGitHub(report));
+                    sourceText.Text = "Source GitHub : main / " + githubSource.Sha.Substring(0, 12) + " — 60 LED, D6, 115200 bauds";
+                }
+                catch (Exception ex) { sourceText.Text = "Téléchargement non effectué. Source embarquée : compilation seulement."; statusText.Text = ex.Message; }
+                finally { IsEnabled = true; }
+            };
+            prepare.Click += async (s, e) =>
+            {
+                IsEnabled = false; statusText.Text = "Préparation des outils… Aucun accès au port COM.";
+                try { await Task.Run(() => FirmwareFlasher.Prepare(report)); }
+                catch (Exception ex) { statusText.Text = ex.Message; }
+                finally { IsEnabled = true; }
+            };
+            compile.Click += async (s, e) =>
+            {
+                int target = board.SelectedIndex;
+                IsEnabled = false; statusText.Text = "Compilation locale… Aucun accès au port COM.";
+                var source = githubSource;
+                try { await Task.Run(() => FirmwareFlasher.CompileOnly(target, report, source)); }
+                catch (Exception ex) { statusText.Text = ex.Message; }
+                finally { IsEnabled = true; }
+            };
+            flash.Click += async (s, e) =>
+            {
+                if (confirmed.IsChecked != true || board.SelectedIndex < 0 || githubSource == null) return;
+                int target = board.SelectedIndex;
+                var source = githubSource;
+                string com = plugin.GetSettings().SerialPort;
+                if (MessageBox.Show("Remplacer le firmware de " + FirmwareFlasher.Boards[target] + " sur " + com +
+                    " ?\nSource GitHub : " + source.Sha.Substring(0, 12) + "\nLe firmware actuel n'est pas sauvegardé automatiquement.\n60 LED WS2812, DATA D6. Ne pas fermer SimHub ni débrancher la carte pendant l'opération.",
+                    "Confirmer le flash", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                bool restore = plugin.Engine != null && plugin.Engine.State.Enabled;
+                IsEnabled = false;
+                try
+                {
+                    // Persist OFF so a game-change reinitialization cannot resume lighting mid-upload.
+                    plugin.SetOutputEnabled(false);
+                    await Task.Run(() => FirmwareFlasher.Flash(target, com, report, source));
+                    if (restore && plugin.Engine != null) plugin.SetOutputEnabled(true);
+                }
+                catch (Exception ex) { statusText.Text = "Échec — éclairage laissé désactivé. " + ex.Message; }
+                finally { IsEnabled = true; confirmed.IsChecked = false; flash.IsEnabled = false; Refresh(); }
+            };
+        }
+        private static CheckBox TelemetryChoice(string text, Panel parent)
+        {
+            var choice = new CheckBox { Content = text, Margin = new Thickness(0, 2, 18, 5) };
+            parent.Children.Add(choice); return choice;
+        }
         internal static Button Button(string text, Action action)
         {
             var button = new Button { Content = text, Padding = new Thickness(12, 6, 12, 6), Margin = new Thickness(0, 4, 10, 4), HorizontalAlignment = HorizontalAlignment.Left };
@@ -222,6 +387,12 @@ namespace DIYAmbient.Plugin
             plugin.ApplySettings(s, true); LoadControls();
         }
 
+        private void TestTelemetry()
+        {
+            int index = Math.Max(0, telemetryTestEffect.SelectedIndex);
+            plugin.Engine.TestTelemetry(TestEffects[index]);
+        }
+
         private void LoadControls()
         {
             if (stopped || plugin.Engine == null) return;
@@ -229,6 +400,12 @@ namespace DIYAmbient.Plugin
             Settings s = plugin.GetSettings();
             enabled.IsChecked = plugin.Engine.State.Enabled;
             mode.SelectedIndex = (int)s.Mode; brightness.Value = s.Brightness * 100; alerts.Value = s.TelemetryLedCount;
+            telemetrySpotter.IsChecked = s.TelemetrySpotterEnabled; telemetryYellow.IsChecked = s.TelemetryYellowEnabled;
+            telemetryBlue.IsChecked = s.TelemetryBlueEnabled; telemetryGreen.IsChecked = s.TelemetryGreenEnabled;
+            telemetryWhite.IsChecked = s.TelemetryWhiteEnabled;
+            spotterColor.SelectedIndex = (int)s.SpotterColor;
+            telemetryAbs.IsChecked = s.TelemetryAbsEnabled; telemetryTc.IsChecked = s.TelemetryTcEnabled;
+            telemetryWheelLock.IsChecked = s.TelemetryWheelLockEnabled;
             warmth.Value = s.Warmth; tint.Value = s.Tint;
             animationEffect.SelectedIndex = Array.IndexOf(AnimationEffects, s.AnimationEffect);
             animationSpeed.Value = s.AnimationSpeed; animationIntensity.Value = s.AnimationIntensity;
@@ -261,6 +438,16 @@ namespace DIYAmbient.Plugin
             {
                 Settings s = plugin.GetSettings(); s.Mode = (LightingMode)mode.SelectedIndex;
                 s.Brightness = brightness.Value / 100; s.TelemetryLedCount = (int)alerts.Value / 2 * 2;
+                s.TelemetrySpotterEnabled = telemetrySpotter.IsChecked == true;
+                s.TelemetryYellowEnabled = telemetryYellow.IsChecked == true;
+                s.TelemetryBlueEnabled = telemetryBlue.IsChecked == true;
+                s.TelemetryGreenEnabled = telemetryGreen.IsChecked == true;
+                s.TelemetryWhiteEnabled = telemetryWhite.IsChecked == true;
+                s.TelemetryAbsEnabled = telemetryAbs.IsChecked == true; s.TelemetryTcEnabled = telemetryTc.IsChecked == true;
+                s.TelemetryWheelLockEnabled = telemetryWheelLock.IsChecked == true;
+                s.TelemetryEffectsInitialized = true;
+                s.SpotterColor = (SpotterColor)Math.Max(0, spotterColor.SelectedIndex);
+                s.DrivingEffectsInitialized = true;
                 s.Warmth = warmth.Value; s.Tint = tint.Value;
                 AnimationEffect selectedEffect = AnimationEffects[Math.Max(0, animationEffect.SelectedIndex)];
                 if (s.AnimationEffect != selectedEffect && selectedEffect == AnimationEffect.Loading)
@@ -268,6 +455,7 @@ namespace DIYAmbient.Plugin
                 s.AnimationEffect = selectedEffect;
                 s.AnimationSpeed = (int)animationSpeed.Value; s.AnimationIntensity = (int)animationIntensity.Value;
                 s.AnimationRandomPalette = randomPalette.IsChecked == true; s.AnimationPaletteInitialized = true;
+                s.RememberAnimation();
                 s.KeepOnAfterExit = keepOnExit.IsChecked == true;
                 s.LedStripCount = stripCount.SelectedIndex == 1 ? 5 : 3;
                 plugin.ApplySettings(s, false); saveTimer.Stop(); saveTimer.Start(); Labels();
@@ -286,6 +474,12 @@ namespace DIYAmbient.Plugin
             if (mode.SelectedIndex != (int)canonical.Mode || Math.Abs(brightness.Value - canonical.Brightness * 100) > .001 ||
                 alerts.Value != canonical.TelemetryLedCount || Math.Abs(warmth.Value - canonical.Warmth) > .001 ||
                 Math.Abs(tint.Value - canonical.Tint) > .001 || keepOnExit.IsChecked != canonical.KeepOnAfterExit ||
+                telemetrySpotter.IsChecked != canonical.TelemetrySpotterEnabled || telemetryYellow.IsChecked != canonical.TelemetryYellowEnabled ||
+                telemetryBlue.IsChecked != canonical.TelemetryBlueEnabled || telemetryGreen.IsChecked != canonical.TelemetryGreenEnabled ||
+                telemetryWhite.IsChecked != canonical.TelemetryWhiteEnabled ||
+                spotterColor.SelectedIndex != (int)canonical.SpotterColor ||
+                telemetryAbs.IsChecked != canonical.TelemetryAbsEnabled || telemetryTc.IsChecked != canonical.TelemetryTcEnabled ||
+                telemetryWheelLock.IsChecked != canonical.TelemetryWheelLockEnabled ||
                 animationEffect.SelectedIndex != Array.IndexOf(AnimationEffects, canonical.AnimationEffect) || animationSpeed.Value != canonical.AnimationSpeed ||
                 animationIntensity.Value != canonical.AnimationIntensity || randomPalette.IsChecked != canonical.AnimationRandomPalette ||
                 stripCount.SelectedIndex != (canonical.LedStripCount == 5 ? 1 : 0))
@@ -295,7 +489,7 @@ namespace DIYAmbient.Plugin
         }
         private Settings ReadInstallation()
         {
-            Settings next = installationWorking.Clone();
+            Settings next = plugin.GetSettings();
             next.PreviewOnly = false;
             next.ElectricalConfirmed = true;
             next.KeepOnAfterExit = keepOnExit.IsChecked == true;
@@ -323,15 +517,15 @@ namespace DIYAmbient.Plugin
 
         private void AnimationEffectChanged()
         {
-            if (!loading && animationEffect.SelectedIndex >= 0 && AnimationEffects[animationEffect.SelectedIndex] == AnimationEffect.Loading &&
-                plugin.GetSettings().AnimationEffect != AnimationEffect.Loading)
-            {
-                loading = true;
-                animationSpeed.Value = 136; animationIntensity.Value = 91; randomPalette.IsChecked = true;
-                loading = false;
-            }
-            Changed();
+            if (loading || stopped || animationEffect.SelectedIndex < 0) return;
+            Guard(() => {
+                Settings settings = plugin.GetSettings();
+                settings.SelectAnimation(AnimationEffects[animationEffect.SelectedIndex]);
+                plugin.ApplySettings(settings, true);
+                LoadControls();
+            });
         }
+
         private void SaveInstallation()
         {
             installationWorking = ReadInstallation();

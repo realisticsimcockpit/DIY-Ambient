@@ -137,7 +137,8 @@ class SourceChecks(unittest.TestCase):
             self.assertFalse(unexpected)
 
     def test_no_external_runtime_or_network_client_in_sources(self):
-        source = '\n'.join(f.read_text() for f in (ROOT / 'src').rglob('*.cs'))
+        # Explicit maintenance is the sole exception; the lighting runtime stays in-process.
+        source = '\n'.join(f.read_text() for f in (ROOT / 'src').rglob('*.cs') if f.name != 'FirmwareFlasher.cs')
         for forbidden in ('new HttpClient(', 'new WebClient(', 'Socket(', 'TcpListener('):
             self.assertNotIn(forbidden, source)
         self.assertEqual(source.count('Process.Start('), 1)
@@ -151,7 +152,7 @@ class SourceChecks(unittest.TestCase):
 
     def test_csharp_scenarios_provided_but_not_run_here(self):
         source = (ROOT / 'tests/CoreTests.cs').read_text()
-        self.assertEqual(len(re.findall(r'\bTest\("', source)), 63)
+        self.assertEqual(len(re.findall(r'\bTest\("', source)), 78)
 
     def test_white_balance_is_not_a_global_screen_filter(self):
         source = (ROOT / 'src/DIYAmbient.Core/FrameComposer.cs').read_text()
@@ -224,11 +225,11 @@ class SourceChecks(unittest.TestCase):
 
     def test_shutdown_option_controls_final_black_frame(self):
         engine = (ROOT / 'src/DIYAmbient.Plugin/AmbientEngine.cs').read_text()
-        self.assertIn('keepOnAfterExit = state.Settings.KeepOnAfterExit', engine)
-        self.assertIn('Disconnect(!keepOnAfterExit)', engine)
+        self.assertIn('keepOnAfterExit = state.Enabled && state.Settings.KeepOnAfterExit', engine)
+        self.assertIn('Disconnect(!keepOnAfterExit || FirmwareBusy)', engine)
         self.assertIn('Disconnect(true)', engine)
 
-    def test_saved_enabled_state_profiles_and_yellow_test(self):
+    def test_saved_enabled_state_profiles_and_telemetry_test(self):
         settings = (ROOT / 'src/DIYAmbient.Core/Settings.cs').read_text()
         plugin = (ROOT / 'src/DIYAmbient.Plugin/Plugin.cs').read_text()
         ui = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
@@ -239,8 +240,8 @@ class SourceChecks(unittest.TestCase):
         self.assertIn('Profiles.TryLoad(gameName', plugin)
         self.assertIn('data.GameName', plugin)
         self.assertIn('Configurer les zones', ui)
-        self.assertIn('Tester drapeau jaune', ui)
-        self.assertIn('TestYellowFlag', engine)
+        self.assertIn("Tester l'effet", ui)
+        self.assertIn('TestTelemetry', engine)
         self.assertIn('SendStartupBlackout', engine)
         self.assertIn('XmlLanguage.GetLanguage("fr-FR")', ui)
 
@@ -248,7 +249,7 @@ class SourceChecks(unittest.TestCase):
         settings = (ROOT / 'src/DIYAmbient.Core/Settings.cs').read_text()
         effects = (ROOT / 'src/DIYAmbient.Core/AnimatedEffects.cs').read_text()
         ui = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
-        self.assertIn('LightingMode { White, Solid, Screen, Animation }', settings)
+        self.assertIn('LightingMode { White, Solid, Screen, Animation, Rpm }', settings)
         for name in ('Colorloop', 'Rainbow', 'FireFlicker', 'Loading'):
             self.assertIn(name, effects)
         for removed in ('Blink', 'Breathe', 'Wipe', 'Scan', 'Theater', 'Chase', 'Twinkle'):
@@ -260,7 +261,7 @@ class SourceChecks(unittest.TestCase):
         self.assertIn('Fondu : ', ui)
         self.assertNotIn('Intensité / largeur', ui)
         self.assertIn('Cycle aléatoire des couleurs', ui)
-        self.assertIn('animationSpeed.Value = 136; animationIntensity.Value = 91', ui)
+        self.assertIn('settings.SelectAnimation(', ui)
         self.assertIn('s.SolidR = 255; s.SolidG = 160; s.SolidB = 0', ui)
 
 

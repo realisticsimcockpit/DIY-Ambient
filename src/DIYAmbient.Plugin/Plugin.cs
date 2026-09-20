@@ -106,7 +106,17 @@ namespace DIYAmbient.Plugin
         private void ApplyProfile(Settings profile)
         {
             Settings s = GetSettings();
+            s.SpotterColor = profile.SpotterColor;
+            s.AnimationPreferences = profile.AnimationPreferences == null ? null : profile.AnimationPreferences.Select(p => p.Clone()).ToList();
             s.Mode = profile.Mode; s.Brightness = profile.Brightness; s.TelemetryLedCount = profile.TelemetryLedCount;
+            s.TelemetryEffectsInitialized = profile.TelemetryEffectsInitialized;
+            s.TelemetrySpotterEnabled = profile.TelemetrySpotterEnabled; s.TelemetryYellowEnabled = profile.TelemetryYellowEnabled;
+            s.TelemetryBlueEnabled = profile.TelemetryBlueEnabled; s.TelemetryGreenEnabled = profile.TelemetryGreenEnabled;
+            s.TelemetryWhiteEnabled = profile.TelemetryWhiteEnabled; s.TelemetryBlackEnabled = profile.TelemetryBlackEnabled;
+            s.TelemetryOrangeEnabled = profile.TelemetryOrangeEnabled; s.TelemetryCheckeredEnabled = profile.TelemetryCheckeredEnabled;
+            s.DrivingEffectsInitialized = profile.DrivingEffectsInitialized;
+            s.TelemetryAbsEnabled = profile.TelemetryAbsEnabled; s.TelemetryTcEnabled = profile.TelemetryTcEnabled;
+            s.TelemetryWheelLockEnabled = profile.TelemetryWheelLockEnabled; s.TelemetryRpmEnabled = profile.TelemetryRpmEnabled;
             s.SolidR = profile.SolidR; s.SolidG = profile.SolidG; s.SolidB = profile.SolidB;
             s.AnimationEffect = profile.AnimationEffect; s.AnimationSpeed = profile.AnimationSpeed;
             s.AnimationIntensity = profile.AnimationIntensity; s.AnimationRandomPalette = profile.AnimationRandomPalette;
@@ -130,21 +140,35 @@ namespace DIYAmbient.Plugin
                     if (Profiles.TryLoad(gameName, out automatic)) ApplyProfile(automatic);
                 }
                 else if (gameName.Length == 0) profileGameLoaded = "";
-                object normalized = data.NewData;
+                var normalized = data.NewData;
                 if (!data.GameRunning || normalized == null || flagReader.Read(data, "GamePaused", out _pauseAvailable))
                 {
                     current.SetTelemetry(TelemetrySnapshot.Empty, "Pas de session active"); return;
                 }
-                bool leftAvailable, rightAvailable, yellowAvailable, blueAvailable;
+                bool leftAvailable, rightAvailable, yellowAvailable, blueAvailable, greenAvailable;
+                bool whiteAvailable;
+                bool absAvailable, tcAvailable;
                 // Probe normalized public fields only. Unsupported properties stay INACTIVE;
                 // no raw game-state bitmasks, no invented cross-game spotter support.
                 bool left = flagReader.Read(normalized, "SpotterCarLeft", out leftAvailable);
                 bool right = flagReader.Read(normalized, "SpotterCarRight", out rightAvailable);
                 bool yellow = flagReader.Read(normalized, "Flag_Yellow", out yellowAvailable);
                 bool blue = flagReader.Read(normalized, "Flag_Blue", out blueAvailable);
-                string description = "Drapeaux : " + (yellowAvailable || blueAvailable ? "champs détectés" : "indisponibles") +
+                bool green = flagReader.Read(normalized, "Flag_Green", out greenAvailable);
+                bool white = flagReader.Read(normalized, "Flag_White", out whiteAvailable);
+                bool abs = flagReader.Read(normalized, "ABSActive", out absAvailable);
+                bool tc = flagReader.Read(normalized, "TCActive", out tcAvailable);
+                double rpmPercent = normalized.CarSettings_CurrentDisplayedRPMPercent;
+                var feedback = normalized.FeedbackData;
+                bool wheelLockAvailable = feedback != null && feedback.WheelSpeed != null &&
+                    feedback.WheelSpeed.Any(v => !double.IsNaN(v) && !double.IsInfinity(v) && Math.Abs(v) > .001);
+                bool wheelLock = wheelLockAvailable && TelemetryMath.WheelLock(feedback.Brake, feedback.Speed, feedback.WheelSpeed);
+                string description = "Drapeaux : " + (yellowAvailable || blueAvailable || greenAvailable || whiteAvailable ? "champs détectés" : "indisponibles") +
+                    " | Aides : " + (absAvailable || tcAvailable ? "ABS/TC détectés" : "ABS/TC indisponibles") +
+                    " | Blocage : " + (wheelLockAvailable ? "vitesses roues détectées" : "indisponible") +
                     " | Spotter : " + (leftAvailable && rightAvailable ? "champs détectés (à valider en piste)" : "non exposé");
-                current.SetTelemetry(new TelemetrySnapshot(true, left, right, yellow, blue, DateTime.UtcNow), description);
+                current.SetTelemetry(new TelemetrySnapshot(true, left, right, yellow, blue, green, white,
+                    false, false, false, abs, tc, wheelLock, rpmPercent, DateTime.UtcNow), description);
             }
             catch (Exception ex)
             {

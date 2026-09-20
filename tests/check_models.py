@@ -75,20 +75,16 @@ class ReferenceModels(unittest.TestCase):
                 self.assertTrue(all(0 <= channel <= 255 for channel in white(wi / 50, ti / 50)))
         self.assertEqual(white(0, 0), (255, 255, 255))
 
-    def test_ranked_split_has_equal_disjoint_sides_for_all_counts(self):
+    def test_physical_split_has_equal_disjoint_sides_for_all_counts(self):
         settings = json.loads((ROOT / 'docs/settings.example.json').read_text())
-        roles = {d['DeviceName'].lower(): d['Position'] for d in settings['Displays']}
-        order = sorted(settings['Zones'], key=lambda z: (
-            roles[z['DeviceName'].lower()] + z['X'] + z['Width'] / 2,
-            z['Y'] + z['Height'] / 2, z['Led']))
-        ids = [z['Led'] for z in order]
+        ids = sorted(z['Led'] for z in settings['Zones'])
         for count in range(0, 61, 2):
             left, right = ids[:count // 2], list(reversed(ids))[:count // 2]
             self.assertEqual(len(left), count // 2)
             self.assertEqual(len(right), count // 2)
             self.assertFalse(set(left) & set(right))
-        self.assertTrue(all(i <= 20 for i in ids[:5]))
-        self.assertTrue(all(i >= 41 for i in ids[-5:]))
+            self.assertEqual(left, list(range(1, count // 2 + 1)))
+            self.assertEqual(right, list(range(60, 60 - count // 2, -1)))
 
     def test_adalight_contract_and_uart_lower_bound(self):
         payload = bytes((i % 256 for i in range(180)))

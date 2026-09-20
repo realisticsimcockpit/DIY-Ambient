@@ -15,6 +15,8 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Runtime.Serialization" />
@@ -33,6 +35,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmbientEngine.cs" />
+    <Compile Include="FirmwareFlasher.cs" />
+    <EmbeddedResource Include="..\..\firmware\Adalight_WS2812\Adalight_WS2812.ino"><LogicalName>DIYAmbient.Firmware.Adalight_WS2812.ino</LogicalName></EmbeddedResource>
     <Compile Include="Plugin.cs" />
     <Compile Include="Profiles.cs" />
     <Compile Include="ScreenCapture.cs" />

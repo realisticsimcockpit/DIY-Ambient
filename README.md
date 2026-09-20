@@ -14,7 +14,7 @@ La DLL est compilée sous Windows contre les bibliothèques du SimHub installé.
 
 L'audit source initial reste dans **`docs/AUDIT_2026-09-20.md`**. La conception alternative de l'interface et l'étude des animations sont conservées séparément dans `docs`.
 
-Le dépôt officiel est privé : `realisticsimcockpit/DIY-Ambient`. Aucun firmware n'est flashé ou modifié par le plugin.
+Le dépôt officiel est privé : `realisticsimcockpit/DIY-Ambient`. Aucun firmware n'est flashé automatiquement. Le [firmware EVO FastLED et sa maintenance facultative](docs/FIRMWARE_EVO.md) sont préparés ; la carte de l'utilisateur n'a pas été flashée.
 
 ## Ce qui reste simple
 
