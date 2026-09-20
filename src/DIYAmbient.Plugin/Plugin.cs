@@ -109,7 +109,7 @@ namespace DIYAmbient.Plugin
             s.Mode = profile.Mode; s.Brightness = profile.Brightness; s.TelemetryLedCount = profile.TelemetryLedCount;
             s.SolidR = profile.SolidR; s.SolidG = profile.SolidG; s.SolidB = profile.SolidB;
             s.AnimationEffect = profile.AnimationEffect; s.AnimationSpeed = profile.AnimationSpeed;
-            s.AnimationIntensity = profile.AnimationIntensity;
+            s.AnimationIntensity = profile.AnimationIntensity; s.AnimationRandomPalette = profile.AnimationRandomPalette;
             s.Warmth = profile.Warmth; s.Tint = profile.Tint;
             s.Displays = profile.Displays.Select(d => d.Clone()).ToList();
             s.Zones = profile.Zones.Select(z => z.Clone()).ToList();

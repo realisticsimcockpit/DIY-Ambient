@@ -167,11 +167,17 @@ internal static class CoreTests
             });
             Test("Loading moves its bright point", () => {
                 var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Loading;
+                s.AnimationSpeed = 136; s.AnimationIntensity = 91; s.AnimationRandomPalette = true;
+                s.SolidR = 255; s.SolidG = 160; s.SolidB = 0;
                 DateTime a = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
                 var first = ComposeAt(s, a, TelemetrySnapshot.Empty).Colors;
-                var second = ComposeAt(s, a.AddMilliseconds(500), TelemetrySnapshot.Empty).Colors;
+                var second = ComposeAt(s, a.AddSeconds(6), TelemetrySnapshot.Empty).Colors;
                 Check(first.Select(c => c.ToString()).SequenceEqual(second.Select(c => c.ToString())) == false, "Loading is frozen");
                 Check(first.Any(c => c.R + c.G + c.B > 0), "Loading is black");
+                Check(first.Select(c => c.ToString()).Distinct().Count() > 5, "Random Cycle palette is missing");
+                s.AnimationRandomPalette = false;
+                var fixedColor = ComposeAt(s, a, TelemetrySnapshot.Empty).Colors;
+                Check(fixedColor.Any(c => c.R + c.G + c.B == 0), "Fixed Loading background is not black");
             });
             Test("Telemetry overrides an animated background only on selected LEDs", () => {
                 var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Rainbow; s.TelemetryLedCount = 10;

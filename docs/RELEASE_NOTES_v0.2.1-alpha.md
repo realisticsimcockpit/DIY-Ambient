@@ -10,6 +10,7 @@ Version alpha actuelle de **DIY Ambient light EVO by REALISTIC SIMCOCKPIT**.
 - plafond logiciel de 15 A appliqué à toutes les images ;
 - blanc fixe, palette de couleurs et capture de trois écrans ;
 - quatre animations : Colorloop, Rainbow, Fire Flicker et Loading ;
+- palette Random Cycle disponible pour Loading, activée par défaut ;
 - Rainbow réparti automatiquement sur les 60 LED ;
 - réglages contextuels Saturation, Scintillement et Fondu ;
 - alertes spotter/drapeaux prioritaires et test du drapeau jaune pendant trois secondes ;

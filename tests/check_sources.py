@@ -259,6 +259,9 @@ class SourceChecks(unittest.TestCase):
         self.assertIn('Scintillement : ', ui)
         self.assertIn('Fondu : ', ui)
         self.assertNotIn('Intensité / largeur', ui)
+        self.assertIn('Cycle aléatoire des couleurs', ui)
+        self.assertIn('animationSpeed.Value = 136; animationIntensity.Value = 91', ui)
+        self.assertIn('s.SolidR = 255; s.SolidG = 160; s.SolidB = 0', ui)
 
 
 if __name__ == '__main__':

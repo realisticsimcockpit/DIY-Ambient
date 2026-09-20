@@ -26,6 +26,7 @@ namespace DIYAmbient.Plugin
         private readonly TextBlock brightnessLabel, alertsLabel, animationSpeedLabel, animationIntensityLabel;
         private readonly StackPanel solidPalette, whiteControls, animationControls;
         private readonly ComboBox animationEffect;
+        private readonly CheckBox randomPalette;
         private readonly ComboBox port;
         private readonly ComboBox stripCount;
         private readonly ComboBox profileName;
@@ -105,6 +106,8 @@ namespace DIYAmbient.Plugin
             foreach (string name in new[] { "Colorloop", "Rainbow", "Fire Flicker", "Loading" })
                 animationEffect.Items.Add(name);
             animationControls.Children.Add(animationEffect);
+            randomPalette = new CheckBox { Content = "Cycle aléatoire des couleurs", Margin = new Thickness(0, 8, 0, 2) };
+            animationControls.Children.Add(randomPalette);
             animationSpeedLabel = Note(""); animationControls.Children.Add(animationSpeedLabel);
             animationSpeed = new Slider { Minimum = 1, Maximum = 255, TickFrequency = 1, IsSnapToTickEnabled = true, Width = 520 };
             animationControls.Children.Add(animationSpeed);
@@ -159,9 +162,10 @@ namespace DIYAmbient.Plugin
             alerts.ValueChanged += (s, e) => Changed();
             warmth.ValueChanged += (s, e) => Changed();
             tint.ValueChanged += (s, e) => Changed();
-            animationEffect.SelectionChanged += (s, e) => Changed();
+            animationEffect.SelectionChanged += (s, e) => AnimationEffectChanged();
             animationSpeed.ValueChanged += (s, e) => Changed();
             animationIntensity.ValueChanged += (s, e) => Changed();
+            randomPalette.Click += (s, e) => Changed();
             keepOnExit.Click += (s, e) => Changed();
             stripCount.SelectionChanged += (s, e) => Changed();
             saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
@@ -228,6 +232,7 @@ namespace DIYAmbient.Plugin
             warmth.Value = s.Warmth; tint.Value = s.Tint;
             animationEffect.SelectedIndex = Array.IndexOf(AnimationEffects, s.AnimationEffect);
             animationSpeed.Value = s.AnimationSpeed; animationIntensity.Value = s.AnimationIntensity;
+            randomPalette.IsChecked = s.AnimationRandomPalette;
             keepOnExit.IsChecked = s.KeepOnAfterExit;
             stripCount.SelectedIndex = s.LedStripCount == 5 ? 1 : 0;
             solidPalette.Visibility = s.Mode == LightingMode.Solid || s.Mode == LightingMode.Animation ? Visibility.Visible : Visibility.Collapsed;
@@ -243,6 +248,7 @@ namespace DIYAmbient.Plugin
             animationSpeedLabel.Text = "Vitesse de l'animation : " + ((int)animationSpeed.Value);
             AnimationEffect effect = animationEffect.SelectedIndex >= 0 ? AnimationEffects[animationEffect.SelectedIndex] : AnimationEffect.Colorloop;
             bool adjustable = effect != AnimationEffect.Rainbow;
+            randomPalette.Visibility = effect == AnimationEffect.Loading ? Visibility.Visible : Visibility.Collapsed;
             animationIntensityLabel.Visibility = adjustable ? Visibility.Visible : Visibility.Collapsed;
             animationIntensity.Visibility = adjustable ? Visibility.Visible : Visibility.Collapsed;
             animationIntensityLabel.Text = (effect == AnimationEffect.Colorloop ? "Saturation : " :
@@ -256,8 +262,12 @@ namespace DIYAmbient.Plugin
                 Settings s = plugin.GetSettings(); s.Mode = (LightingMode)mode.SelectedIndex;
                 s.Brightness = brightness.Value / 100; s.TelemetryLedCount = (int)alerts.Value / 2 * 2;
                 s.Warmth = warmth.Value; s.Tint = tint.Value;
-                s.AnimationEffect = AnimationEffects[Math.Max(0, animationEffect.SelectedIndex)];
+                AnimationEffect selectedEffect = AnimationEffects[Math.Max(0, animationEffect.SelectedIndex)];
+                if (s.AnimationEffect != selectedEffect && selectedEffect == AnimationEffect.Loading)
+                { s.SolidR = 255; s.SolidG = 160; s.SolidB = 0; }
+                s.AnimationEffect = selectedEffect;
                 s.AnimationSpeed = (int)animationSpeed.Value; s.AnimationIntensity = (int)animationIntensity.Value;
+                s.AnimationRandomPalette = randomPalette.IsChecked == true; s.AnimationPaletteInitialized = true;
                 s.KeepOnAfterExit = keepOnExit.IsChecked == true;
                 s.LedStripCount = stripCount.SelectedIndex == 1 ? 5 : 3;
                 plugin.ApplySettings(s, false); saveTimer.Stop(); saveTimer.Start(); Labels();
@@ -277,7 +287,7 @@ namespace DIYAmbient.Plugin
                 alerts.Value != canonical.TelemetryLedCount || Math.Abs(warmth.Value - canonical.Warmth) > .001 ||
                 Math.Abs(tint.Value - canonical.Tint) > .001 || keepOnExit.IsChecked != canonical.KeepOnAfterExit ||
                 animationEffect.SelectedIndex != Array.IndexOf(AnimationEffects, canonical.AnimationEffect) || animationSpeed.Value != canonical.AnimationSpeed ||
-                animationIntensity.Value != canonical.AnimationIntensity ||
+                animationIntensity.Value != canonical.AnimationIntensity || randomPalette.IsChecked != canonical.AnimationRandomPalette ||
                 stripCount.SelectedIndex != (canonical.LedStripCount == 5 ? 1 : 0))
                 LoadControls();
             enabled.IsChecked = current.State.Enabled;
@@ -309,6 +319,18 @@ namespace DIYAmbient.Plugin
                 }
             }
             next.Displays = maps; next.Zones = zones; next.Validate(); return next;
+        }
+
+        private void AnimationEffectChanged()
+        {
+            if (!loading && animationEffect.SelectedIndex >= 0 && AnimationEffects[animationEffect.SelectedIndex] == AnimationEffect.Loading &&
+                plugin.GetSettings().AnimationEffect != AnimationEffect.Loading)
+            {
+                loading = true;
+                animationSpeed.Value = 136; animationIntensity.Value = 91; randomPalette.IsChecked = true;
+                loading = false;
+            }
+            Changed();
         }
         private void SaveInstallation()
         {

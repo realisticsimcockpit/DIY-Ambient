@@ -2,7 +2,7 @@
 
 [Chaîne YouTube REALISTIC SIMCOCKPIT](https://www.youtube.com/@realisticsimcockpit)
 
-Le mode **Animations inspirées de WLED** propose quatre effets 1D pour les 60 positions physiques : Colorloop, Rainbow, Fire Flicker et Loading. La vitesse, l'intensité et la couleur principale sont enregistrées avec les profils de jeu. Les alertes de télémétrie restent prioritaires et le plafond logiciel de 15 A s'applique à chaque image animée.
+Le mode **Animations inspirées de WLED** propose quatre effets 1D pour les 60 positions physiques : Colorloop, Rainbow, Fire Flicker et Loading. Loading propose le cycle aléatoire des palettes correspondant à `pal:1` de WLED. La vitesse, l'intensité et la couleur principale sont enregistrées avec les profils de jeu. Les alertes de télémétrie restent prioritaires et le plafond logiciel de 15 A s'applique à chaque image animée.
 
 **0.2.1-alpha • 20 septembre 2026**
 

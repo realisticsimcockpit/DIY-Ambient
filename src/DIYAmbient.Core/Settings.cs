@@ -53,6 +53,8 @@ namespace DIYAmbient.Core
         [DataMember(IsRequired = false)] public AnimationEffect AnimationEffect;
         [DataMember(IsRequired = false)] public int AnimationSpeed;
         [DataMember(IsRequired = false)] public int AnimationIntensity;
+        [DataMember(IsRequired = false)] public bool AnimationRandomPalette;
+        [DataMember(IsRequired = false)] public bool AnimationPaletteInitialized;
         [DataMember(IsRequired = true)] public double Warmth;
         [DataMember(IsRequired = true)] public double Tint;
         [DataMember(IsRequired = true)] public double CurrentBudgetAmps;
@@ -67,6 +69,7 @@ namespace DIYAmbient.Core
             Mode = LightingMode.White; Brightness = 0.25;
             TelemetryLedCount = 0; SolidR = 255; SolidG = 180; SolidB = 90;
             AnimationEffect = AnimationEffect.Colorloop; AnimationSpeed = 128; AnimationIntensity = 128;
+            AnimationRandomPalette = true; AnimationPaletteInitialized = true;
             Warmth = 0; Tint = 0;
             // Provisional budget, NOT a certified safe rating for unknown wiring.
             CurrentBudgetAmps = 15.0;
@@ -103,6 +106,7 @@ namespace DIYAmbient.Core
             if (AnimationSpeed == 0) AnimationSpeed = 128;
             if (AnimationIntensity == 0) AnimationIntensity = 128;
             if (!Enum.IsDefined(typeof(AnimationEffect), AnimationEffect)) AnimationEffect = AnimationEffect.Colorloop;
+            if (!AnimationPaletteInitialized) { AnimationRandomPalette = true; AnimationPaletteInitialized = true; }
         }
 
         public Settings Clone()

@@ -16,6 +16,8 @@
   "AnimationEffect": 4,
   "AnimationSpeed": 128,
   "AnimationIntensity": 128,
+  "AnimationRandomPalette": true,
+  "AnimationPaletteInitialized": true,
   "Warmth": 0,
   "Tint": 0,
   "CurrentBudgetAmps": 15.0,
