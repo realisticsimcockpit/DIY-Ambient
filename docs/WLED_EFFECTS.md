@@ -7,7 +7,7 @@ Références étudiées le 20 septembre 2026 :
 - moteur d'effets officiel : https://github.com/wled/WLED/blob/main/wled00/FX.cpp
 - licence WLED EUPL-1.2 : https://github.com/wled/WLED/blob/main/LICENSE
 
-WLED annonce plus de 200 effets, dont des effets audio et matriciels qui ne correspondent pas à cette installation linéaire de 60 LED. La première collection retient dix effets 1D adaptés au cockpit : Blink, Breathe, Wipe, Scan, Colorloop, Rainbow, Theater, Chase, Twinkle et Fire Flicker.
+WLED annonce plus de 200 effets, dont des effets audio et matriciels qui ne correspondent pas à cette installation linéaire de 60 LED. La collection retenue pour le cockpit contient quatre effets 1D : Colorloop, Rainbow, Fire Flicker et Loading.
 
 L'implémentation de `AnimatedEffects.cs` a été réécrite pour le moteur .NET du plugin. Elle ne contient pas le code source WLED sous EUPL. Elle vise le même comportement visuel et les mêmes paramètres usuels, mais ne prétend pas être une reproduction binaire image par image du firmware WLED, dont le temps d'exécution, les palettes, l'état pseudo-aléatoire et la fréquence de rendu diffèrent.
 

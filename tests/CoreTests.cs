@@ -84,6 +84,15 @@ internal static class CoreTests
                     Check(result.AnimationEffect == AnimationEffect.Colorloop && result.AnimationSpeed == 128 && result.AnimationIntensity == 128, "Animation settings lost");
                 }
             });
+            Test("Removed v0.2.0 animations migrate to Colorloop", () => {
+                var s = new Settings(); s.AnimationEffect = (AnimationEffect)0;
+                var serializer = new DataContractJsonSerializer(typeof(Settings));
+                using (var stream = new MemoryStream()) {
+                    serializer.WriteObject(stream, s); stream.Position = 0;
+                    var result = (Settings)serializer.ReadObject(stream); result.Validate();
+                    Check(result.AnimationEffect == AnimationEffect.Colorloop, "Removed animation was not migrated");
+                }
+            });
             Test("Adalight header / RGB order / 186 bytes", () => {
                 var colors = Fill(Rgb.Black); colors[0] = new Rgb(1, 2, 3); colors[59] = new Rgb(250, 251, 252);
                 byte[] p = AdalightProtocol.Encode(colors);
@@ -144,10 +153,25 @@ internal static class CoreTests
                 var f = ComposeAt(s, new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc), TelemetrySnapshot.Empty);
                 Check(f.Colors.Select(c => c.ToString()).Distinct().Count() > 8, "Rainbow is uniform");
             });
+            Test("Rainbow size is fixed for the 60 LED route", () => {
+                var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Rainbow;
+                DateTime now = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                s.AnimationIntensity = 1; var narrow = ComposeAt(s, now, TelemetrySnapshot.Empty);
+                s.AnimationIntensity = 255; var wide = ComposeAt(s, now, TelemetrySnapshot.Empty);
+                Check(narrow.Colors.Select(c => c.ToString()).SequenceEqual(wide.Colors.Select(c => c.ToString())), "Rainbow size still changes");
+            });
             Test("Colorloop changes with time", () => {
                 var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Colorloop;
                 DateTime a = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
                 Check(ComposeAt(s, a, TelemetrySnapshot.Empty).Colors[0].ToString() != ComposeAt(s, a.AddSeconds(2), TelemetrySnapshot.Empty).Colors[0].ToString(), "Colorloop is frozen");
+            });
+            Test("Loading moves its bright point", () => {
+                var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Loading;
+                DateTime a = new DateTime(2026, 9, 20, 12, 0, 0, DateTimeKind.Utc);
+                var first = ComposeAt(s, a, TelemetrySnapshot.Empty).Colors;
+                var second = ComposeAt(s, a.AddMilliseconds(500), TelemetrySnapshot.Empty).Colors;
+                Check(first.Select(c => c.ToString()).SequenceEqual(second.Select(c => c.ToString())) == false, "Loading is frozen");
+                Check(first.Any(c => c.R + c.G + c.B > 0), "Loading is black");
             });
             Test("Telemetry overrides an animated background only on selected LEDs", () => {
                 var s = Full(); s.Mode = LightingMode.Animation; s.AnimationEffect = AnimationEffect.Rainbow; s.TelemetryLedCount = 10;

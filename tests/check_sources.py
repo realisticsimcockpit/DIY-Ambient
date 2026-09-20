@@ -151,7 +151,7 @@ class SourceChecks(unittest.TestCase):
 
     def test_csharp_scenarios_provided_but_not_run_here(self):
         source = (ROOT / 'tests/CoreTests.cs').read_text()
-        self.assertEqual(len(re.findall(r'\bTest\("', source)), 60)
+        self.assertEqual(len(re.findall(r'\bTest\("', source)), 63)
 
     def test_white_balance_is_not_a_global_screen_filter(self):
         source = (ROOT / 'src/DIYAmbient.Core/FrameComposer.cs').read_text()
@@ -249,10 +249,16 @@ class SourceChecks(unittest.TestCase):
         effects = (ROOT / 'src/DIYAmbient.Core/AnimatedEffects.cs').read_text()
         ui = (ROOT / 'src/DIYAmbient.Plugin/SettingsControl.cs').read_text()
         self.assertIn('LightingMode { White, Solid, Screen, Animation }', settings)
-        for name in ('Blink', 'Breathe', 'Wipe', 'Scan', 'Colorloop', 'Rainbow', 'Theater', 'Chase', 'Twinkle', 'FireFlicker'):
+        for name in ('Colorloop', 'Rainbow', 'FireFlicker', 'Loading'):
             self.assertIn(name, effects)
+        for removed in ('Blink', 'Breathe', 'Wipe', 'Scan', 'Theater', 'Chase', 'Twinkle'):
+            self.assertNotIn(removed, effects)
         self.assertIn('Animations inspirées de WLED', ui)
         self.assertIn('AnimationSpeed', ui)
+        self.assertIn('Saturation : ', ui)
+        self.assertIn('Scintillement : ', ui)
+        self.assertIn('Fondu : ', ui)
+        self.assertNotIn('Intensité / largeur', ui)
 
 
 if __name__ == '__main__':

@@ -2,9 +2,9 @@
 
 [Chaîne YouTube REALISTIC SIMCOCKPIT](https://www.youtube.com/@realisticsimcockpit)
 
-Le mode **Animations inspirées de WLED** propose dix effets 1D pour les 60 positions physiques : Blink, Breathe, Wipe, Scan, Colorloop, Rainbow, Theater, Chase, Twinkle et Fire Flicker. La vitesse, l'intensité et la couleur principale sont enregistrées avec les profils de jeu. Les alertes de télémétrie restent prioritaires et le plafond logiciel de 15 A s'applique à chaque image animée.
+Le mode **Animations inspirées de WLED** propose quatre effets 1D pour les 60 positions physiques : Colorloop, Rainbow, Fire Flicker et Loading. La vitesse, l'intensité et la couleur principale sont enregistrées avec les profils de jeu. Les alertes de télémétrie restent prioritaires et le plafond logiciel de 15 A s'applique à chaque image animée.
 
-**0.2.0-alpha • 20 septembre 2026**
+**0.2.1-alpha • 20 septembre 2026**
 
 Éclairage de cockpit intégré à SimHub : **60 LED Adalight, trois moniteurs indépendants, blanc fixe, couleur fixe, animations, image des écrans et alertes partagées à égalité gauche/droite.**
 
@@ -24,7 +24,7 @@ La configuration initiale garde tes plages : **DISPLAY1 central 21–40, DISPLAY
 
 Une seule DLL au fonctionnement, **aucun programme auxiliaire externe**. L'alpha utilise deux workers internes : capture et sortie série. Ils ne constituent pas une isolation de processus contre un crash natif.
 
-## Principales nouveautés 0.2.0
+## Principales nouveautés 0.2.x
 
 | Sujet | Changement |
 |---|---|
@@ -34,7 +34,7 @@ Une seule DLL au fonctionnement, **aucun programme auxiliaire externe**. L'alpha
 | Capture triple | Contextes GDI par moniteur, bitmap natif compatible, synchronisation et nettoyage revus. **Toujours expérimental et non testé sous Windows.** |
 | Connexion | Un seul worker peut posséder la sortie ; délai borné avant fermeture après le noir ; le port peut rester ouvert pendant l'édition pour éviter des resets répétés. |
 | Construction | Anciennes sorties supprimées avant contrôle, compilation préparée séparément, journaux et manifeste de version/hash. |
-| Animations | Dix animations 1D de style WLED, avec vitesse, intensité et couleur principale. |
+| Animations | Colorloop, Rainbow, Fire Flicker et Loading, avec vitesse, intensité et couleur principale. |
 | Profils | Enregistrement/chargement et sélection automatique d'un profil portant le nom du jeu SimHub actif. |
 | Alimentation | Choix 3 × 60 ou 5 × 60 ; plafond logiciel fixe de 15 A appliqué à chaque image. |
 | Arrêt | Noir envoyé à la fermeture par défaut, avec option explicite pour conserver la dernière couleur. |
@@ -49,7 +49,7 @@ Les journaux se trouvent dans `audit-results/`. Ne pas additionner ces catégori
 
 ## Construire sous Windows
 
-Extraire dans un **dossier neuf**, par exemple `Documents\DIY-Ambient-0.2.0`.
+Extraire dans un **dossier neuf**, par exemple `Documents\DIY-Ambient-0.2.1`.
 
 1. Exécuter **`TESTER.cmd`**. Attendu : 60 scénarios C# réussis, sans SimHub ni port série.
 2. Exécuter **`CONSTRUIRE.cmd`**. Il refait les tests, utilise le compilateur C# de .NET Framework et les DLL du SimHub installé, puis prépare `artifacts\plugin\DIYAmbient.Plugin.dll`. Aucune dépendance n'est téléchargée.

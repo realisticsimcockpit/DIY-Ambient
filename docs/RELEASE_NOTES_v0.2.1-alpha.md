@@ -1,15 +1,17 @@
-# DIY Ambient light EVO v0.2.0-alpha
+# DIY Ambient light EVO v0.2.1-alpha
 
-Première release GitHub de **DIY Ambient light EVO by REALISTIC SIMCOCKPIT**.
+Version alpha actuelle de **DIY Ambient light EVO by REALISTIC SIMCOCKPIT**.
 
-## Nouveautés
+## Fonctions principales
 
 - panneau principal simplifié en français ;
 - mémorisation de l'état `Éclairage activé` ;
 - port série COM et choix de 3 × 60 ou 5 × 60 LED ;
 - plafond logiciel de 15 A appliqué à toutes les images ;
-- blanc fixe, palette de couleurs, capture de trois écrans et dix animations 1D ;
-- Blink, Breathe, Wipe, Scan, Colorloop, Rainbow, Theater, Chase, Twinkle et Fire Flicker ;
+- blanc fixe, palette de couleurs et capture de trois écrans ;
+- quatre animations : Colorloop, Rainbow, Fire Flicker et Loading ;
+- Rainbow réparti automatiquement sur les 60 LED ;
+- réglages contextuels Saturation, Scintillement et Fondu ;
 - alertes spotter/drapeaux prioritaires et test du drapeau jaune pendant trois secondes ;
 - configuration graphique des zones de chaque écran ;
 - profils enregistrables et chargement automatique selon le nom du jeu SimHub ;

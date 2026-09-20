@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0-alpha",
+  "version": "0.2.1-alpha",
   "date": "2026-09-20",
-  "delivery": "private GitHub prerelease with compiled plugin DLL",
+  "delivery": "single private GitHub prerelease with compiled plugin DLL",
   "remote_repository": "realisticsimcockpit/DIY-Ambient",
   "remote_visibility_rechecked": true,
   "remote_visibility": "PRIVATE",
@@ -19,7 +19,7 @@
   },
   "csharp_test_scenarios": {
     "executed": true,
-    "passed": 60,
+    "passed": 63,
     "failed": 0
   },
   "capture_backend": "GDI SDR prototype; not DXGI/HDR",

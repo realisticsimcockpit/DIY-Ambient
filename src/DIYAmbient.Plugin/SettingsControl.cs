@@ -33,6 +33,7 @@ namespace DIYAmbient.Plugin
         private readonly CheckBox keepOnExit;
         private readonly ComboBox[] monitors = new ComboBox[3];
         private readonly TextBox[] first = new TextBox[3], last = new TextBox[3];
+        private static readonly AnimationEffect[] AnimationEffects = { AnimationEffect.Colorloop, AnimationEffect.Rainbow, AnimationEffect.FireFlicker, AnimationEffect.Loading };
         private Settings installationWorking;
         private bool loading;
         private bool stopped;
@@ -52,7 +53,7 @@ namespace DIYAmbient.Plugin
             channelLink.RequestNavigate += OpenExternalLink;
             channel.Inlines.Add(channelLink);
             root.Children.Add(channel);
-            root.Children.Add(Note("Éclairage du cockpit • 60 LED • alpha 0.2.0"));
+            root.Children.Add(Note("Éclairage du cockpit • 60 LED • alpha 0.2.1"));
             if (!string.IsNullOrEmpty(plugin.StartupWarning)) root.Children.Add(Note(plugin.StartupWarning));
             enabled = new CheckBox { Content = "Éclairage activé", Margin = new Thickness(0, 18, 0, 12), FontSize = 17 };
             root.Children.Add(enabled);
@@ -101,7 +102,7 @@ namespace DIYAmbient.Plugin
             animationControls = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
             animationControls.Children.Add(Note("Animation 1D compatible avec les 60 LED"));
             animationEffect = new ComboBox { Width = 300, HorizontalAlignment = HorizontalAlignment.Left };
-            foreach (string name in new[] { "Blink", "Breathe", "Wipe", "Scan", "Colorloop", "Rainbow", "Theater", "Chase", "Twinkle", "Fire Flicker" })
+            foreach (string name in new[] { "Colorloop", "Rainbow", "Fire Flicker", "Loading" })
                 animationEffect.Items.Add(name);
             animationControls.Children.Add(animationEffect);
             animationSpeedLabel = Note(""); animationControls.Children.Add(animationSpeedLabel);
@@ -225,7 +226,7 @@ namespace DIYAmbient.Plugin
             enabled.IsChecked = plugin.Engine.State.Enabled;
             mode.SelectedIndex = (int)s.Mode; brightness.Value = s.Brightness * 100; alerts.Value = s.TelemetryLedCount;
             warmth.Value = s.Warmth; tint.Value = s.Tint;
-            animationEffect.SelectedIndex = (int)s.AnimationEffect;
+            animationEffect.SelectedIndex = Array.IndexOf(AnimationEffects, s.AnimationEffect);
             animationSpeed.Value = s.AnimationSpeed; animationIntensity.Value = s.AnimationIntensity;
             keepOnExit.IsChecked = s.KeepOnAfterExit;
             stripCount.SelectedIndex = s.LedStripCount == 5 ? 1 : 0;
@@ -240,7 +241,12 @@ namespace DIYAmbient.Plugin
             int n = (int)alerts.Value;
             alertsLabel.Text = n == 0 ? "LED de télémétrie : désactivées" : string.Format("LED de télémétrie : {0} — {1} à gauche + {1} à droite", n, n / 2);
             animationSpeedLabel.Text = "Vitesse de l'animation : " + ((int)animationSpeed.Value);
-            animationIntensityLabel.Text = "Intensité / largeur : " + ((int)animationIntensity.Value);
+            AnimationEffect effect = animationEffect.SelectedIndex >= 0 ? AnimationEffects[animationEffect.SelectedIndex] : AnimationEffect.Colorloop;
+            bool adjustable = effect != AnimationEffect.Rainbow;
+            animationIntensityLabel.Visibility = adjustable ? Visibility.Visible : Visibility.Collapsed;
+            animationIntensity.Visibility = adjustable ? Visibility.Visible : Visibility.Collapsed;
+            animationIntensityLabel.Text = (effect == AnimationEffect.Colorloop ? "Saturation : " :
+                effect == AnimationEffect.FireFlicker ? "Scintillement : " : "Fondu : ") + ((int)animationIntensity.Value);
         }
         private void Changed()
         {
@@ -250,7 +256,7 @@ namespace DIYAmbient.Plugin
                 Settings s = plugin.GetSettings(); s.Mode = (LightingMode)mode.SelectedIndex;
                 s.Brightness = brightness.Value / 100; s.TelemetryLedCount = (int)alerts.Value / 2 * 2;
                 s.Warmth = warmth.Value; s.Tint = tint.Value;
-                s.AnimationEffect = (AnimationEffect)Math.Max(0, animationEffect.SelectedIndex);
+                s.AnimationEffect = AnimationEffects[Math.Max(0, animationEffect.SelectedIndex)];
                 s.AnimationSpeed = (int)animationSpeed.Value; s.AnimationIntensity = (int)animationIntensity.Value;
                 s.KeepOnAfterExit = keepOnExit.IsChecked == true;
                 s.LedStripCount = stripCount.SelectedIndex == 1 ? 5 : 3;
@@ -270,7 +276,7 @@ namespace DIYAmbient.Plugin
             if (mode.SelectedIndex != (int)canonical.Mode || Math.Abs(brightness.Value - canonical.Brightness * 100) > .001 ||
                 alerts.Value != canonical.TelemetryLedCount || Math.Abs(warmth.Value - canonical.Warmth) > .001 ||
                 Math.Abs(tint.Value - canonical.Tint) > .001 || keepOnExit.IsChecked != canonical.KeepOnAfterExit ||
-                animationEffect.SelectedIndex != (int)canonical.AnimationEffect || animationSpeed.Value != canonical.AnimationSpeed ||
+                animationEffect.SelectedIndex != Array.IndexOf(AnimationEffects, canonical.AnimationEffect) || animationSpeed.Value != canonical.AnimationSpeed ||
                 animationIntensity.Value != canonical.AnimationIntensity ||
                 stripCount.SelectedIndex != (canonical.LedStripCount == 5 ? 1 : 0))
                 LoadControls();

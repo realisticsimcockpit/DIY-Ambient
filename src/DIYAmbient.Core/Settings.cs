@@ -7,7 +7,8 @@ using System.Text.RegularExpressions;
 namespace DIYAmbient.Core
 {
     public enum LightingMode { White, Solid, Screen, Animation }
-    public enum AnimationEffect { Blink, Breathe, Wipe, Scan, Colorloop, Rainbow, Theater, Chase, Twinkle, FireFlicker }
+    // Numeric values 4, 5 and 9 preserve profiles created by v0.2.0.
+    public enum AnimationEffect { Colorloop = 4, Rainbow = 5, FireFlicker = 9, Loading = 47 }
 
     [DataContract]
     public sealed class DisplayMap
@@ -101,6 +102,7 @@ namespace DIYAmbient.Core
             if (LedStripCount == 0) LedStripCount = 3;
             if (AnimationSpeed == 0) AnimationSpeed = 128;
             if (AnimationIntensity == 0) AnimationIntensity = 128;
+            if (!Enum.IsDefined(typeof(AnimationEffect), AnimationEffect)) AnimationEffect = AnimationEffect.Colorloop;
         }
 
         public Settings Clone()

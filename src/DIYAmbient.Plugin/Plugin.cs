@@ -9,8 +9,8 @@ using DIYAmbient.Core;
 
 [assembly: AssemblyTitle("DIY Ambient light EVO SimHub Plugin")]
 [assembly: AssemblyDescription("Éclairage de cockpit par REALISTIC SIMCOCKPIT — version alpha")]
-[assembly: AssemblyVersion("0.2.0.0")]
-[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyVersion("0.2.1.0")]
+[assembly: AssemblyFileVersion("0.2.1.0")]
 
 namespace DIYAmbient.Plugin
 {
@@ -56,7 +56,7 @@ namespace DIYAmbient.Plugin
                 try { engine.SetEnabled(true); }
                 catch (Exception ex) { Storage.Log("Saved startup enable rejected: " + ex.Message); }
             }
-            Storage.Log("DIY Ambient light EVO 0.2.0-alpha initialized; output=" + (engine.State.Enabled ? "ON" : "OFF"));
+            Storage.Log("DIY Ambient light EVO 0.2.1-alpha initialized; output=" + (engine.State.Enabled ? "ON" : "OFF"));
             this.AttachDelegate("OutputEnabled", () => { AmbientEngine current = engine; return current != null && current.State.Enabled; });
             this.AttachDelegate("Status", () => { AmbientEngine current = engine; return current == null ? "Arrêté" : current.Status; });
             this.AttachDelegate("EstimatedAmps", () => { AmbientEngine current = engine; return current == null ? 0.0 : current.LastFrame.EstimatedAmps; });
