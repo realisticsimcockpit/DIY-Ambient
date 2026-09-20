@@ -1,0 +1,2 @@
+PASS: 194 host-simulated firmware parser cases.
+The .ino was unchanged. Serial/FastLED are test doubles. No UART timing, USB, current, physical LED, C#, WPF or SimHub validation.

@@ -1,0 +1,13 @@
+REFERENCE MODELS ONLY — no C# compilation or execution, no current measurement.
+test_adalight_contract_and_uart_lower_bound (__main__.ReferenceModels.test_adalight_contract_and_uart_lower_bound) ... ok
+test_fixed_gain_budget_10000_random_frames (__main__.ReferenceModels.test_fixed_gain_budget_10000_random_frames) ... ok
+test_fixed_gain_does_not_pump (__main__.ReferenceModels.test_fixed_gain_does_not_pump) ... ok
+test_full_white_range_and_brightness_monotonicity (__main__.ReferenceModels.test_full_white_range_and_brightness_monotonicity) ... ok
+test_ranked_split_has_equal_disjoint_sides_for_all_counts (__main__.ReferenceModels.test_ranked_split_has_equal_disjoint_sides_for_all_counts) ... ok
+test_reproduce_old_background_pumping (__main__.ReferenceModels.test_reproduce_old_background_pumping) ... ok
+test_white_preset_channels_never_overdrive (__main__.ReferenceModels.test_white_preset_channels_never_overdrive) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 1.047s
+
+OK
