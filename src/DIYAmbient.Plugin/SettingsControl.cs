@@ -22,7 +22,7 @@ namespace DIYAmbient.Plugin
         private readonly DispatcherTimer timer;
         private readonly DispatcherTimer saveTimer;
         private readonly CheckBox enabled;
-        private readonly ComboBox mode;
+        private readonly ComboBox idleMode, inGameMode;
         private readonly Slider brightness, alerts, warmth, tint;
         private readonly Slider animationSpeed, animationIntensity;
         private readonly TextBlock brightnessLabel, alertsLabel, animationSpeedLabel, animationIntensityLabel;
@@ -93,9 +93,10 @@ namespace DIYAmbient.Plugin
                 IsChecked = installationWorking.KeepOnAfterExit,
                 Margin = new Thickness(0, 0, 0, 8) };
             installation.Children.Add(keepOnExit);
-            mode = new ComboBox { Width = 390, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 16) };
-            mode.Items.Add("Blanc fixe"); mode.Items.Add("Couleur fixe"); mode.Items.Add("Image des 3 écrans — SDR expérimental"); mode.Items.Add("Animations inspirées de WLED"); mode.Items.Add("RPM");
-            root.Children.Add(mode);
+            idleMode = ModeCombo("Mode au repos");
+            inGameMode = ModeCombo("Mode en jeu");
+            root.Children.Add(Note("Mode au repos — aucun jeu détecté")); root.Children.Add(idleMode);
+            root.Children.Add(Note("Mode en jeu — SimHub détecte un jeu en cours")); root.Children.Add(inGameMode);
             solidPalette = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
             solidPalette.Children.Add(Note("Palette de couleur fixe"));
             var palette = new WrapPanel { MaxWidth = 620, HorizontalAlignment = HorizontalAlignment.Left };
@@ -198,7 +199,8 @@ namespace DIYAmbient.Plugin
 
             LoadControls();
             enabled.Click += (s, e) => Guard(() => { plugin.SetOutputEnabled(enabled.IsChecked == true); Refresh(); });
-            mode.SelectionChanged += (s, e) => Changed();
+            idleMode.SelectionChanged += (s, e) => Changed();
+            inGameMode.SelectionChanged += (s, e) => Changed();
             brightness.ValueChanged += (s, e) => Changed();
             alerts.ValueChanged += (s, e) => Changed();
             telemetrySpotter.Click += (s, e) => Changed(); telemetryYellow.Click += (s, e) => Changed();
@@ -230,6 +232,12 @@ namespace DIYAmbient.Plugin
 
         internal static TextBlock Note(string text)
         { return new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 7), MaxWidth = 840 }; }
+        private static ComboBox ModeCombo(string label)
+        {
+            var panel = new ComboBox { Width = 390, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 8), ToolTip = label };
+            panel.Items.Add("Blanc fixe"); panel.Items.Add("Couleur fixe"); panel.Items.Add("Image des 3 écrans — SDR expérimental"); panel.Items.Add("Animations inspirées de WLED"); panel.Items.Add("RPM");
+            return panel;
+        }
 
         private void ApplyDarkStyles()
         {
@@ -443,7 +451,7 @@ namespace DIYAmbient.Plugin
             loading = true;
             Settings s = plugin.GetSettings();
             enabled.IsChecked = plugin.Engine.State.Enabled;
-            mode.SelectedIndex = (int)s.Mode; brightness.Value = s.Brightness * 100; alerts.Value = s.TelemetryLedCount;
+            idleMode.SelectedIndex = (int)s.IdleMode; inGameMode.SelectedIndex = (int)s.InGameMode; brightness.Value = s.Brightness * 100; alerts.Value = s.TelemetryLedCount;
             telemetrySpotter.IsChecked = s.TelemetrySpotterEnabled; telemetryYellow.IsChecked = s.TelemetryYellowEnabled;
             telemetryBlue.IsChecked = s.TelemetryBlueEnabled; telemetryGreen.IsChecked = s.TelemetryGreenEnabled;
             telemetryWhite.IsChecked = s.TelemetryWhiteEnabled;
@@ -456,9 +464,7 @@ namespace DIYAmbient.Plugin
             randomPalette.IsChecked = s.AnimationRandomPalette;
             keepOnExit.IsChecked = s.KeepOnAfterExit;
             stripCount.SelectedIndex = s.LedStripCount == 5 ? 1 : 0;
-            solidPalette.Visibility = s.Mode == LightingMode.Solid || s.Mode == LightingMode.Animation ? Visibility.Visible : Visibility.Collapsed;
-            whiteControls.Visibility = s.Mode == LightingMode.White ? Visibility.Visible : Visibility.Collapsed;
-            animationControls.Visibility = s.Mode == LightingMode.Animation ? Visibility.Visible : Visibility.Collapsed;
+            UpdateModeControls(s);
             loading = false; Labels();
         }
         private void Labels()
@@ -475,12 +481,22 @@ namespace DIYAmbient.Plugin
             animationIntensityLabel.Text = (effect == AnimationEffect.Colorloop ? "Saturation : " :
                 effect == AnimationEffect.FireFlicker ? "Scintillement : " : "Fondu : ") + ((int)animationIntensity.Value);
         }
+        private void UpdateModeControls(Settings s)
+        {
+            bool solid = s.IdleMode == LightingMode.Solid || s.InGameMode == LightingMode.Solid;
+            bool animation = s.IdleMode == LightingMode.Animation || s.InGameMode == LightingMode.Animation;
+            bool white = s.IdleMode == LightingMode.White || s.InGameMode == LightingMode.White;
+            solidPalette.Visibility = solid || animation ? Visibility.Visible : Visibility.Collapsed;
+            whiteControls.Visibility = white ? Visibility.Visible : Visibility.Collapsed;
+            animationControls.Visibility = animation ? Visibility.Visible : Visibility.Collapsed;
+        }
         private void Changed()
         {
-            if (loading || stopped || mode.SelectedIndex < 0) return;
+            if (loading || stopped || idleMode.SelectedIndex < 0 || inGameMode.SelectedIndex < 0) return;
             Guard(() =>
             {
-                Settings s = plugin.GetSettings(); s.Mode = (LightingMode)mode.SelectedIndex;
+                Settings s = plugin.GetSettings(); s.IdleMode = (LightingMode)idleMode.SelectedIndex; s.InGameMode = (LightingMode)inGameMode.SelectedIndex; s.Mode = s.InGameMode;
+                s.ModeProfilesInitialized = true;
                 s.Brightness = brightness.Value / 100; s.TelemetryLedCount = (int)alerts.Value / 2 * 2;
                 s.TelemetrySpotterEnabled = telemetrySpotter.IsChecked == true;
                 s.TelemetryYellowEnabled = telemetryYellow.IsChecked == true;
@@ -503,9 +519,7 @@ namespace DIYAmbient.Plugin
                 s.KeepOnAfterExit = keepOnExit.IsChecked == true;
                 s.LedStripCount = stripCount.SelectedIndex == 1 ? 5 : 3;
                 plugin.ApplySettings(s, false); saveTimer.Stop(); saveTimer.Start(); Labels();
-                solidPalette.Visibility = s.Mode == LightingMode.Solid || s.Mode == LightingMode.Animation ? Visibility.Visible : Visibility.Collapsed;
-                whiteControls.Visibility = s.Mode == LightingMode.White ? Visibility.Visible : Visibility.Collapsed;
-                animationControls.Visibility = s.Mode == LightingMode.Animation ? Visibility.Visible : Visibility.Collapsed;
+                UpdateModeControls(s);
             });
         }
         private void Refresh()
@@ -515,7 +529,7 @@ namespace DIYAmbient.Plugin
             // Actions/Stream Deck may change a mode while this page is open.
             // Keep the controls in sync without firing their change handlers.
             Settings canonical = plugin.GetSettings();
-            if (mode.SelectedIndex != (int)canonical.Mode || Math.Abs(brightness.Value - canonical.Brightness * 100) > .001 ||
+            if (idleMode.SelectedIndex != (int)canonical.IdleMode || inGameMode.SelectedIndex != (int)canonical.InGameMode || Math.Abs(brightness.Value - canonical.Brightness * 100) > .001 ||
                 alerts.Value != canonical.TelemetryLedCount || Math.Abs(warmth.Value - canonical.Warmth) > .001 ||
                 Math.Abs(tint.Value - canonical.Tint) > .001 || keepOnExit.IsChecked != canonical.KeepOnAfterExit ||
                 telemetrySpotter.IsChecked != canonical.TelemetrySpotterEnabled || telemetryYellow.IsChecked != canonical.TelemetryYellowEnabled ||

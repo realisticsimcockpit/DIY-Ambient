@@ -152,7 +152,7 @@ class SourceChecks(unittest.TestCase):
 
     def test_csharp_scenarios_provided_but_not_run_here(self):
         source = (ROOT / 'tests/CoreTests.cs').read_text()
-        self.assertEqual(len(re.findall(r'\bTest\("', source)), 78)
+        self.assertEqual(len(re.findall(r'\bTest\("', source)), 79)
 
     def test_white_balance_is_not_a_global_screen_filter(self):
         source = (ROOT / 'src/DIYAmbient.Core/FrameComposer.cs').read_text()

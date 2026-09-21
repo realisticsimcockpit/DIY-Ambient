@@ -11,12 +11,12 @@ namespace DIYAmbient.Plugin
     {
         public readonly Settings Settings;
         public readonly TelemetrySelection Selection;
-        public readonly bool Enabled, Editing;
+        public readonly bool Enabled, Editing, GameRunning;
         public readonly long CaptureVersion;
-        public EngineState(Settings settings, bool enabled, bool editing, long captureVersion)
+        public EngineState(Settings settings, bool enabled, bool editing, long captureVersion, bool gameRunning = false)
         {
             Settings = settings; Selection = new TelemetrySelection(settings);
-            Enabled = enabled; Editing = editing; CaptureVersion = captureVersion;
+            Enabled = enabled; Editing = editing; CaptureVersion = captureVersion; GameRunning = gameRunning;
         }
     }
     internal sealed class CapturedFrame
@@ -109,7 +109,7 @@ namespace DIYAmbient.Plugin
             get
             {
                 EngineState current = state;
-                if (!current.Enabled || current.Editing || current.Settings.Mode != LightingMode.Screen) return "Capture inactive";
+                if (!current.Enabled || current.Editing || current.Settings.EffectiveMode(current.GameRunning) != LightingMode.Screen) return "Capture inactive";
                 CapturedFrame frame = captured;
                 return frame == null || frame.Version != current.CaptureVersion ? "En attente d'une nouvelle capture" : frame.Status;
             }
@@ -122,9 +122,10 @@ namespace DIYAmbient.Plugin
             {
                 EnsureActive();
                 bool disarm = OutputPolicy.HardwareChanged(state.Settings, copy);
-                bool invalidate = disarm || state.Settings.Mode != copy.Mode || !OutputPolicy.CaptureLayoutEquals(state.Settings, copy);
+                bool modeChanged = state.Settings.Mode != copy.Mode || state.Settings.IdleMode != copy.IdleMode || state.Settings.InGameMode != copy.InGameMode;
+                bool invalidate = disarm || modeChanged || !OutputPolicy.CaptureLayoutEquals(state.Settings, copy);
                 long version = state.CaptureVersion + (invalidate ? 1 : 0);
-                state = new EngineState(copy, state.Enabled && !disarm, state.Editing, version);
+                state = new EngineState(copy, state.Enabled && !disarm, state.Editing, version, state.GameRunning);
                 if (invalidate) captured = null;
                 if (disarm) { test = null; lastFrame = new FrameResult(new Rgb[60], .06, 1); }
                 if (!state.Enabled && !string.IsNullOrWhiteSpace(copy.SerialPort)) startupBlackoutPending = true;
@@ -139,7 +140,7 @@ namespace DIYAmbient.Plugin
                 if (enabled && string.IsNullOrWhiteSpace(s.SerialPort))
                     throw new InvalidOperationException("Sélectionner le port avant d'activer l'éclairage.");
                 if (enabled == state.Enabled) return;
-                state = new EngineState(s, enabled, state.Editing, state.CaptureVersion + 1);
+                state = new EngineState(s, enabled, state.Editing, state.CaptureVersion + 1, state.GameRunning);
                 captured = null; test = null;
                 if (!enabled) lastFrame = new FrameResult(new Rgb[60], .06, 1);
             }
@@ -149,7 +150,7 @@ namespace DIYAmbient.Plugin
             lock (gate)
             {
                 EnsureActive();
-                state = new EngineState(state.Settings, state.Enabled, editing, state.CaptureVersion + 1);
+                state = new EngineState(state.Settings, state.Enabled, editing, state.CaptureVersion + 1, state.GameRunning);
                 captured = null; test = null;
             }
         }
@@ -161,6 +162,16 @@ namespace DIYAmbient.Plugin
                 if (disposed) return;
                 telemetry = (snapshot ?? TelemetrySnapshot.Empty).WithTiming(telemetry);
                 telemetryStatus = description;
+            }
+        }
+        public void SetGameRunning(bool running)
+        {
+            lock (gate)
+            {
+                EnsureActive();
+                if (state.GameRunning == running) return;
+                state = new EngineState(state.Settings, state.Enabled, state.Editing, state.CaptureVersion + 1, running);
+                captured = null;
             }
         }
         public void Test(bool left, bool right, int identifyLed)
@@ -201,7 +212,7 @@ namespace DIYAmbient.Plugin
                 while (!stop.IsCancellationRequested)
                 {
                     EngineState current = state;
-                    if (!current.Enabled || current.Editing || current.Settings.Mode != LightingMode.Screen)
+                    if (!current.Enabled || current.Editing || current.Settings.EffectiveMode(current.GameRunning) != LightingMode.Screen)
                     {
                         CloseCapture(ref capture); captured = null;
                         if (stop.Token.WaitHandle.WaitOne(100)) break;
@@ -267,7 +278,8 @@ namespace DIYAmbient.Plugin
         private void OutputTick()
         {
             EngineState current = state;
-            Settings s = current.Settings;
+            Settings s = current.Settings.Clone();
+            s.Mode = s.EffectiveMode(current.GameRunning);
             if (startupBlackoutPending && !current.Enabled && !string.IsNullOrWhiteSpace(s.SerialPort))
             {
                 if (serial != null) { Disconnect(true); startupBlackoutPending = false; status = "Éteint — contrôleur remis au noir"; return; }
@@ -425,7 +437,7 @@ namespace DIYAmbient.Plugin
                 if (disposed) return;
                 disposed = true;
                 keepOnAfterExit = state.Enabled && state.Settings.KeepOnAfterExit;
-                state = new EngineState(state.Settings, false, false, state.CaptureVersion + 1);
+                state = new EngineState(state.Settings, false, false, state.CaptureVersion + 1, state.GameRunning);
                 test = null; captured = null; telemetry = TelemetrySnapshot.Empty;
             }
             stop.Cancel();

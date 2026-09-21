@@ -67,7 +67,12 @@ namespace DIYAmbient.Plugin
         }
 
         private void SetMode(LightingMode mode)
-        { Settings s = GetSettings(); s.Mode = mode; ApplySettings(s, true); }
+        {
+            Settings s = GetSettings(); s.Mode = mode; s.ModeProfilesInitialized = true;
+            AmbientEngine current = engine;
+            if (current != null && current.State.GameRunning) s.InGameMode = mode; else s.IdleMode = mode;
+            ApplySettings(s, true);
+        }
         private static void SafeAction(Action action)
         { try { action(); } catch (Exception ex) { Storage.Log("Action rejected: " + ex.Message); } }
         internal Settings GetSettings()
@@ -109,6 +114,7 @@ namespace DIYAmbient.Plugin
             s.SpotterColor = profile.SpotterColor;
             s.AnimationPreferences = profile.AnimationPreferences == null ? null : profile.AnimationPreferences.Select(p => p.Clone()).ToList();
             s.Mode = profile.Mode; s.Brightness = profile.Brightness; s.TelemetryLedCount = profile.TelemetryLedCount;
+            s.IdleMode = profile.IdleMode; s.InGameMode = profile.InGameMode; s.ModeProfilesInitialized = profile.ModeProfilesInitialized;
             s.TelemetryEffectsInitialized = profile.TelemetryEffectsInitialized;
             s.TelemetrySpotterEnabled = profile.TelemetrySpotterEnabled; s.TelemetryYellowEnabled = profile.TelemetryYellowEnabled;
             s.TelemetryBlueEnabled = profile.TelemetryBlueEnabled; s.TelemetryGreenEnabled = profile.TelemetryGreenEnabled;
@@ -133,6 +139,7 @@ namespace DIYAmbient.Plugin
             {
                 string gameName = data.GameRunning ? (data.GameName ?? "").Trim() : "";
                 currentGameName = gameName;
+                current.SetGameRunning(data.GameRunning);
                 if (gameName.Length > 0 && !string.Equals(profileGameLoaded, gameName, StringComparison.OrdinalIgnoreCase))
                 {
                     profileGameLoaded = gameName;

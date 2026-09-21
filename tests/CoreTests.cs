@@ -58,6 +58,30 @@ internal static class CoreTests
                     "Expected telemetry defaults are disabled");
                 Check(s.TelemetryAbsEnabled && s.TelemetryTcEnabled && s.TelemetryWheelLockEnabled && !s.TelemetryRpmEnabled,
                     "Unexpected driving effect defaults");
+                Check(s.IdleMode == LightingMode.White && s.InGameMode == LightingMode.Screen && s.ModeProfilesInitialized,
+                    "Unexpected idle/game mode defaults");
+            });
+            Test("Legacy mode migrates to both idle and in-game modes", () => {
+                var original = Full(); original.Mode = LightingMode.Animation; original.ModeProfilesInitialized = false;
+                Settings restored;
+                using (var stream = new MemoryStream()) {
+                    var serializer = new DataContractJsonSerializer(typeof(Settings)); serializer.WriteObject(stream, original);
+                    stream.Position = 0; restored = (Settings)serializer.ReadObject(stream);
+                }
+                restored.Validate();
+                Check(restored.ModeProfilesInitialized && restored.IdleMode == LightingMode.Animation && restored.InGameMode == LightingMode.Animation,
+                    "Legacy mode was not preserved");
+                restored.IdleMode = LightingMode.White; restored.InGameMode = LightingMode.Rpm;
+                Check(restored.EffectiveMode(false) == LightingMode.White && restored.EffectiveMode(true) == LightingMode.Rpm,
+                    "Automatic mode selection failed");
+                restored.InGameMode = (LightingMode)99; Reject(restored.Validate);
+                original.Mode = LightingMode.Screen; original.ModeProfilesInitialized = false;
+                using (var stream = new MemoryStream()) {
+                    var serializer = new DataContractJsonSerializer(typeof(Settings)); serializer.WriteObject(stream, original);
+                    stream.Position = 0; restored = (Settings)serializer.ReadObject(stream);
+                }
+                Check(restored.IdleMode == LightingMode.White && restored.InGameMode == LightingMode.Screen,
+                    "Legacy screen mode must become white idle / screen in-game");
             });
             Test("Existing display ranges", () => {
                 var s = new Settings();

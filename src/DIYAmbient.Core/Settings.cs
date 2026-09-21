@@ -56,6 +56,9 @@ namespace DIYAmbient.Core
         [DataMember(IsRequired = false)] public bool StartEnabled;
         [DataMember(IsRequired = false)] public bool StartEnabledPreferenceInitialized;
         [DataMember(IsRequired = true)] public LightingMode Mode;
+        [DataMember(IsRequired = false)] public LightingMode IdleMode;
+        [DataMember(IsRequired = false)] public LightingMode InGameMode;
+        [DataMember(IsRequired = false)] public bool ModeProfilesInitialized;
         [DataMember(IsRequired = true)] public double Brightness;
         [DataMember(IsRequired = true)] public int TelemetryLedCount;
         [DataMember(IsRequired = false)] public bool TelemetryEffectsInitialized;
@@ -94,6 +97,7 @@ namespace DIYAmbient.Core
             ElectricalConfirmed = true; KeepOnAfterExit = false; LedStripCount = 3;
             StartEnabled = true; StartEnabledPreferenceInitialized = true;
             Mode = LightingMode.White; Brightness = 0.25;
+            IdleMode = LightingMode.White; InGameMode = LightingMode.Screen; ModeProfilesInitialized = true;
             TelemetryLedCount = 0; InitializeTelemetryEffects();
             SolidR = 255; SolidG = 180; SolidB = 90;
             AnimationEffect = AnimationEffect.Colorloop; AnimationSpeed = 128; AnimationIntensity = 128;
@@ -127,7 +131,15 @@ namespace DIYAmbient.Core
             if (!TelemetryEffectsInitialized) InitializeTelemetryEffects();
             if (!DrivingEffectsInitialized) InitializeDrivingEffects();
             if (TelemetryRpmEnabled) { Mode = LightingMode.Rpm; TelemetryRpmEnabled = false; }
+            if (!ModeProfilesInitialized)
+            {
+                IdleMode = Mode == LightingMode.Screen || Mode == LightingMode.Rpm ? LightingMode.White : Mode;
+                InGameMode = Mode; ModeProfilesInitialized = true;
+            }
         }
+
+        public LightingMode EffectiveMode(bool gameRunning)
+        { return gameRunning ? InGameMode : IdleMode; }
 
         public void RememberAnimation()
         {
@@ -184,6 +196,7 @@ namespace DIYAmbient.Core
                 p.Speed >= 1 && p.Speed <= 255 && p.Intensity >= 1 && p.Intensity <= 255) &&
                 AnimationPreferences.Select(p => p.Effect).Distinct().Count() == AnimationPreferences.Count), "Réglages d'animation invalides.");
             Require(Enum.IsDefined(typeof(LightingMode), Mode), "Mode inconnu.");
+            Require(Enum.IsDefined(typeof(LightingMode), IdleMode) && Enum.IsDefined(typeof(LightingMode), InGameMode), "Mode repos/jeu inconnu.");
             Require(Enum.IsDefined(typeof(AnimationEffect), AnimationEffect), "Animation inconnue.");
             Require(AnimationSpeed >= 1 && AnimationSpeed <= 255, "Vitesse d'animation invalide.");
             Require(AnimationIntensity >= 1 && AnimationIntensity <= 255, "Intensité d'animation invalide.");

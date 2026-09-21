@@ -45,6 +45,17 @@ class SettingsUiTests
             Assert(tabs.Items.Count == 3, "Expected exactly three tabs");
             string[] headers = { "Installation", "Personnalisation", "Firmware" };
             foreach (int index in new[] { 0, 1, 2 }) Assert((string)((TabItem)tabs.Items[index]).Header == headers[index], "Tab order");
+            var idleMode = (ComboBox)uiType.GetField("idleMode", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+            var inGameMode = (ComboBox)uiType.GetField("inGameMode", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+            Assert(idleMode.Items.Count == 5 && inGameMode.Items.Count == 5, "Idle/game selectors incomplete");
+            Assert(idleMode.SelectedIndex == 0 && inGameMode.SelectedIndex == 2, "Unexpected idle/game defaults");
+            var personalization = (DependencyObject)((TabItem)tabs.Items[1]).Content;
+            string labels = string.Join("|", Descendants(personalization).OfType<TextBlock>().Select(t => t.Text));
+            Assert(labels.Contains("Mode au repos") && labels.Contains("Mode en jeu"), "Idle/game labels missing");
+            inGameMode.SelectedIndex = 3;
+            var animationControls = (StackPanel)uiType.GetField("animationControls", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);
+            Assert(animationControls.Visibility == Visibility.Visible, "In-game animation controls hidden while idle");
+            inGameMode.SelectedIndex = 2;
             var installation = (DependencyObject)((TabItem)tabs.Items[0]).Content;
             foreach (string field in new[] { "port", "stripCount" })
                 Assert(Descendants(installation).Contains((DependencyObject)uiType.GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui)), "Misplaced " + field);
