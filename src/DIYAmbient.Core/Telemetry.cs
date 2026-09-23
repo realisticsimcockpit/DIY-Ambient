@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace DIYAmbient.Core
 {
-    public enum TelemetryEffect { SpotterLeft, SpotterRight, Yellow, Blue, Green, White, Black, Orange, Checkered, Abs, Tc, WheelLock, Rpm }
+    public enum TelemetryEffect { SpotterLeft, SpotterRight, Yellow, Blue, Green, White, Black, Orange, Checkered, Abs, Tc, WheelLock, Rpm, InPit }
 
     public static class TelemetryTestSettings
     {
@@ -13,6 +13,7 @@ namespace DIYAmbient.Core
             Settings s = source.Clone();
             switch (effect)
             {
+                case TelemetryEffect.InPit: s.TelemetryInPitEnabled = true; break;
                 case TelemetryEffect.SpotterLeft: case TelemetryEffect.SpotterRight: s.TelemetrySpotterEnabled = true; break;
                 case TelemetryEffect.Yellow: s.TelemetryYellowEnabled = true; break;
                 case TelemetryEffect.Blue: s.TelemetryBlueEnabled = true; break;
@@ -30,7 +31,7 @@ namespace DIYAmbient.Core
     public sealed class TelemetrySnapshot
     {
         public readonly bool GameRunning, Left, Right, Yellow, Blue, Green, White, Black, Orange, Checkered;
-        public readonly bool Abs, Tc, WheelLock;
+        public readonly bool Abs, Tc, WheelLock, InPit;
         public readonly double RpmPercent;
         public readonly DateTime TimestampUtc;
         private DateTime[] activationTimes;
@@ -49,13 +50,14 @@ namespace DIYAmbient.Core
                 case TelemetryEffect.Tc: return Tc;
                 case TelemetryEffect.WheelLock: return WheelLock;
                 case TelemetryEffect.Rpm: return RpmPercent >= 100;
+                case TelemetryEffect.InPit: return InPit;
                 default: return false;
             }
         }
         public TelemetrySnapshot WithTiming(TelemetrySnapshot previous)
         {
             var copy = (TelemetrySnapshot)MemberwiseClone();
-            copy.activationTimes = new DateTime[13];
+            copy.activationTimes = new DateTime[Enum.GetValues(typeof(TelemetryEffect)).Length];
             for (int index = 0; index < copy.activationTimes.Length; index++)
             {
                 var effect = (TelemetryEffect)index;
@@ -79,11 +81,11 @@ namespace DIYAmbient.Core
                 false, false, false, 0, utc) { }
         public TelemetrySnapshot(bool running, bool left, bool right, bool yellow, bool blue,
             bool green, bool white, bool black, bool orange, bool checkered,
-            bool abs, bool tc, bool wheelLock, double rpmPercent, DateTime utc)
+            bool abs, bool tc, bool wheelLock, double rpmPercent, DateTime utc, bool inPit = false)
         {
             GameRunning = running; Left = left; Right = right; Yellow = yellow; Blue = blue;
             Green = green; White = white; Black = black; Orange = orange; Checkered = checkered;
-            Abs = abs; Tc = tc; WheelLock = wheelLock;
+            Abs = abs; Tc = tc; WheelLock = wheelLock; InPit = inPit;
             RpmPercent = double.IsNaN(rpmPercent) || double.IsInfinity(rpmPercent) ? 0 : Math.Max(0, Math.Min(100, rpmPercent));
             TimestampUtc = utc;
         }

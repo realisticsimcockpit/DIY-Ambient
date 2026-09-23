@@ -43,6 +43,14 @@ namespace DIYAmbient.Core
                     s.Mode == LightingMode.Rpm ? RpmColor(telemetry, now) :
                     screen != null && screen.Length == 60 ? screen[i] : Rgb.Black;
 
+            // Pit pattern spans all 60 addresses independently of the side-alert count.
+            // Active pit mode suppresses the background; urgent alerts below retain priority.
+            if (s.TelemetryInPitEnabled && telemetry != null && telemetry.IsFresh(now) && telemetry.InPit)
+            {
+                bool on = FastBlink(telemetry, TelemetryEffect.InPit, now);
+                for (int i = 0; i < colors.Length; i++)
+                    colors[i] = on && i % 2 == 0 ? new Rgb(0, 70, 255) : Rgb.Black;
+            }
             if (s.TelemetryLedCount > 0 && telemetry != null && telemetry.IsFresh(now))
             {
                 int[] both = selection.Left.Concat(selection.Right).ToArray();

@@ -298,7 +298,7 @@ namespace DIYAmbient.Plugin
             bool enabled = current.Enabled && (!current.Editing || identifying);
             TelemetrySnapshot t = testing ? new TelemetrySnapshot(true, request.Left, request.Right,
                 request.Yellow, request.Blue, request.Green, request.White, request.Black, request.Orange,
-                request.Checkered, request.Abs, request.Tc, request.WheelLock, request.RpmPercent, now) : telemetry;
+                request.Checkered, request.Abs, request.Tc, request.WheelLock, request.RpmPercent, now, request.Effect == TelemetryEffect.InPit) : telemetry;
             if (testing) { t = t.WithTiming(request.Previous); request.Previous = t; }
             FrameResult frame = FrameComposer.Compose(s, enabled, pixels, t, current.Selection, now,
                 identifying ? request.IdentifyLed : 0);

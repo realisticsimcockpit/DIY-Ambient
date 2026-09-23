@@ -8,15 +8,15 @@ using SimHub.Plugins;
 using DIYAmbient.Core;
 
 [assembly: AssemblyTitle("DIY Ambient light EVO SimHub Plugin")]
-[assembly: AssemblyDescription("Éclairage de cockpit par REALISTIC SIMCOCKPIT — version alpha")]
-[assembly: AssemblyVersion("0.2.1.0")]
-[assembly: AssemblyFileVersion("0.2.1.0")]
+[assembly: AssemblyDescription("DIY Ambient light EVO by REALISTIC SIMCOCKPIT")]
+[assembly: AssemblyVersion("0.3.0.0")]
+[assembly: AssemblyFileVersion("0.3.0.0")]
 
 namespace DIYAmbient.Plugin
 {
     [PluginName("DIY Ambient light EVO")]
     [PluginAuthor("REALISTIC SIMCOCKPIT")]
-    [PluginDescription("Éclairage de cockpit Adalight, trois écrans, animations, profils de jeu et alertes — version alpha")]
+    [PluginDescription("Éclairage de cockpit Adalight, trois écrans, animations, profils de jeu et alertes")]
     public sealed class AmbientPlugin : IPlugin, IDataPlugin, IWPFSettingsV2
     {
         private volatile AmbientEngine engine;
@@ -56,7 +56,7 @@ namespace DIYAmbient.Plugin
                 try { engine.SetEnabled(true); }
                 catch (Exception ex) { Storage.Log("Saved startup enable rejected: " + ex.Message); }
             }
-            Storage.Log("DIY Ambient light EVO 0.2.1-alpha initialized; output=" + (engine.State.Enabled ? "ON" : "OFF"));
+            Storage.Log("DIY Ambient light EVO 0.3.0 initialized; output=" + (engine.State.Enabled ? "ON" : "OFF"));
             this.AttachDelegate("OutputEnabled", () => { AmbientEngine current = engine; return current != null && current.State.Enabled; });
             this.AttachDelegate("Status", () => { AmbientEngine current = engine; return current == null ? "Arrêté" : current.Status; });
             this.AttachDelegate("EstimatedAmps", () => { AmbientEngine current = engine; return current == null ? 0.0 : current.LastFrame.EstimatedAmps; });
@@ -119,6 +119,7 @@ namespace DIYAmbient.Plugin
             s.TelemetrySpotterEnabled = profile.TelemetrySpotterEnabled; s.TelemetryYellowEnabled = profile.TelemetryYellowEnabled;
             s.TelemetryBlueEnabled = profile.TelemetryBlueEnabled; s.TelemetryGreenEnabled = profile.TelemetryGreenEnabled;
             s.TelemetryWhiteEnabled = profile.TelemetryWhiteEnabled; s.TelemetryBlackEnabled = profile.TelemetryBlackEnabled;
+            s.TelemetryInPitEnabled = profile.TelemetryInPitEnabled;
             s.TelemetryOrangeEnabled = profile.TelemetryOrangeEnabled; s.TelemetryCheckeredEnabled = profile.TelemetryCheckeredEnabled;
             s.DrivingEffectsInitialized = profile.DrivingEffectsInitialized;
             s.TelemetryAbsEnabled = profile.TelemetryAbsEnabled; s.TelemetryTcEnabled = profile.TelemetryTcEnabled;
@@ -155,6 +156,9 @@ namespace DIYAmbient.Plugin
                 bool leftAvailable, rightAvailable, yellowAvailable, blueAvailable, greenAvailable;
                 bool whiteAvailable;
                 bool absAvailable, tcAvailable;
+                bool pitAvailable, pitLaneAvailable;
+                bool inPit = flagReader.Read(normalized, "IsInPit", out pitAvailable);
+                bool inPitLane = flagReader.Read(normalized, "IsInPitLane", out pitLaneAvailable);
                 // Probe normalized public fields only. Unsupported properties stay INACTIVE;
                 // no raw game-state bitmasks, no invented cross-game spotter support.
                 bool left = flagReader.Read(normalized, "SpotterCarLeft", out leftAvailable);
@@ -173,9 +177,10 @@ namespace DIYAmbient.Plugin
                 string description = "Drapeaux : " + (yellowAvailable || blueAvailable || greenAvailable || whiteAvailable ? "champs détectés" : "indisponibles") +
                     " | Aides : " + (absAvailable || tcAvailable ? "ABS/TC détectés" : "ABS/TC indisponibles") +
                     " | Blocage : " + (wheelLockAvailable ? "vitesses roues détectées" : "indisponible") +
-                    " | Spotter : " + (leftAvailable && rightAvailable ? "champs détectés (à valider en piste)" : "non exposé");
+                    " | Spotter : " + (leftAvailable && rightAvailable ? "champs détectés (à valider en piste)" : "non exposé") +
+                    " | Stands : " + (pitAvailable || pitLaneAvailable ? "champs détectés" : "indisponibles");
                 current.SetTelemetry(new TelemetrySnapshot(true, left, right, yellow, blue, green, white,
-                    false, false, false, abs, tc, wheelLock, rpmPercent, DateTime.UtcNow), description);
+                    false, false, false, abs, tc, wheelLock, rpmPercent, DateTime.UtcNow, inPit || inPitLane), description);
             }
             catch (Exception ex)
             {

@@ -21,3 +21,18 @@ __pycache__/
 .env.*
 settings.json
 !settings.example.json
+
+# Local development notes and historical audit artifacts.
+AGENTS.md
+LOCAL_CHECKS.txt
+SOURCE_MANIFEST.sha256
+audit-results/
+changes/
+docs/ARCHITECTURE.md
+docs/AUDIT_2026-09-20.md
+docs/BUILD_STATUS.json
+docs/DESIGN_AUDIT_EVO.md
+docs/FIRMWARE_EVO.md
+docs/UPDATE_2026-09-20.md
+docs/VALIDATION.md
+docs/WLED_EFFECTS.md

@@ -48,6 +48,23 @@ internal static class CoreTests
 
     public static int Main()
     {
+        Test("Pit pattern: odd 30, blink, stale, opt-out, power and test isolation", () => {
+            var s = Full(); s.Mode = LightingMode.White; s.TelemetryLedCount = 0; s.TelemetryInPitEnabled = true;
+            DateTime now = DateTime.UtcNow;
+            var pit = new TelemetrySnapshot(true, false, false, false, false, false, false, false, false, false,
+                false, false, false, 0, now, true).WithTiming(null);
+            var on = ComposeAt(s, now, pit);
+            for (int i = 0; i < 60; i++) Check(i % 2 == 0 ? on.Colors[i].B > 0 && on.Colors[i].R == 0 : on.Colors[i].Equals(Rgb.Black), "Wrong pit pixel " + i);
+            Check(ComposeAt(s, now.AddMilliseconds(250), pit).Colors.All(c => c.Equals(Rgb.Black)), "Pit OFF phase not black");
+            Check(ComposeAt(s, now.AddMilliseconds(500), pit).Colors.Count(c => c.B > 0) == 30, "Pit did not blink again");
+            Check(ComposeAt(s, now.AddSeconds(2), pit).Colors.All(c => c.R > 0), "Stale pit hides background");
+            Check(FrameComposer.Compose(s, false, null, pit, new TelemetrySelection(s), now, 0).Colors.All(c => c.Equals(Rgb.Black)), "Output OFF ignored");
+            s.CurrentBudgetAmps = .5;
+            Check(ComposeAt(s, now, pit).EstimatedAmps <= .5, "Pit bypassed power cap");
+            s.TelemetryInPitEnabled = false;
+            Check(ComposeAt(s, now, pit).Colors.All(c => c.R > 0), "Disabled pit hides background");
+            Check(TelemetryTestSettings.ForEffect(s, TelemetryEffect.InPit).TelemetryInPitEnabled && !s.TelemetryInPitEnabled, "Test altered canonical settings");
+        });
         try
         {
             Test("Default settings validate at maximum software power", () => {

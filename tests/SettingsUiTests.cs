@@ -61,13 +61,16 @@ class SettingsUiTests
                 Assert(Descendants(installation).Contains((DependencyObject)uiType.GetField(field, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui)), "Misplaced " + field);
             Assert(Descendants(installation).OfType<Button>().Count(b => (b.Content as string) == "Configurer les zones") == 3, "Screen configuration missing");
             var firmware = (DependencyObject)((TabItem)tabs.Items[2]).Content;
-            Assert(!Descendants(firmware).OfType<Button>().Single(b => (b.Content as string) == "Flasher la carte…").IsEnabled, "Flash must be locked initially");
+            Assert(!Descendants(firmware).OfType<Button>().Single(b => (b.Content as string) == "3. Flasher la carte…").IsEnabled, "Flash must be locked initially");
+            Assert(Descendants(firmware).OfType<CheckBox>().Single(c => (c.Content as string).StartsWith("J'ai vérifié")).IsChecked == false, "Firmware confirmation must start unchecked");
             ui.Background = new SolidColorBrush(Color.FromRgb(32, 32, 32)); ui.Foreground = Brushes.White;
             Directory.CreateDirectory(args[2]);
             for (int index = 0; index < 3; index++)
             {
                 tabs.SelectedIndex = index;
                 ui.Measure(new Size(1040, 1400)); ui.Arrange(new Rect(0, 0, 1040, 1400)); ui.UpdateLayout();
+                var selectedTab = (TabItem)tabs.Items[index];
+                Assert(((SolidColorBrush)selectedTab.BorderBrush).Color.B == 255, "Selected tab indicator missing");
                 if (index == 0)
                 {
                     var port = (ComboBox)uiType.GetField("port", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(ui);

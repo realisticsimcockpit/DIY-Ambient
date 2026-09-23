@@ -31,9 +31,10 @@ namespace DIYAmbient.Plugin
         private readonly CheckBox randomPalette;
         private readonly CheckBox telemetrySpotter, telemetryYellow, telemetryBlue, telemetryGreen;
         private readonly CheckBox telemetryWhite;
+        private readonly CheckBox telemetryInPit;
         private readonly CheckBox telemetryAbs, telemetryTc, telemetryWheelLock;
         private readonly ComboBox telemetryTestEffect, spotterColor;
-        private static readonly TelemetryEffect[] TestEffects = { TelemetryEffect.SpotterLeft, TelemetryEffect.SpotterRight, TelemetryEffect.Yellow, TelemetryEffect.Blue, TelemetryEffect.Green, TelemetryEffect.White, TelemetryEffect.Abs, TelemetryEffect.Tc, TelemetryEffect.WheelLock };
+        private static readonly TelemetryEffect[] TestEffects = { TelemetryEffect.SpotterLeft, TelemetryEffect.SpotterRight, TelemetryEffect.Yellow, TelemetryEffect.Blue, TelemetryEffect.Green, TelemetryEffect.White, TelemetryEffect.Abs, TelemetryEffect.Tc, TelemetryEffect.WheelLock, TelemetryEffect.InPit };
         private readonly ComboBox port;
         private readonly ComboBox stripCount;
         private readonly ComboBox profileName;
@@ -63,7 +64,7 @@ namespace DIYAmbient.Plugin
             channelLink.RequestNavigate += OpenExternalLink;
             channel.Inlines.Add(channelLink);
             root.Children.Add(channel);
-            root.Children.Add(Note("Éclairage du cockpit • 60 LED • alpha 0.2.1"));
+            root.Children.Add(Note("Éclairage du cockpit • 60 LED"));
             if (!string.IsNullOrEmpty(plugin.StartupWarning)) root.Children.Add(Note(plugin.StartupWarning));
             enabled = new CheckBox { Content = "Éclairage activé", Margin = new Thickness(0, 18, 0, 12), FontSize = 17 };
             root.Children.Add(enabled);
@@ -149,6 +150,7 @@ namespace DIYAmbient.Plugin
             telemetryBlue = TelemetryChoice("Drapeau bleu", telemetryChoices);
             telemetryGreen = TelemetryChoice("Drapeau vert", telemetryChoices);
             telemetryWhite = TelemetryChoice("Drapeau blanc", telemetryChoices);
+            telemetryInPit = TelemetryChoice("In pit", telemetryChoices);
             telemetryAbs = TelemetryChoice("ABS actif", telemetryChoices);
             telemetryTc = TelemetryChoice("TC actif", telemetryChoices);
             telemetryWheelLock = TelemetryChoice("Blocage des roues", telemetryChoices);
@@ -159,7 +161,7 @@ namespace DIYAmbient.Plugin
             root.Children.Add(spotterColor);
             var telemetryTest = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 8) };
             telemetryTestEffect = new ComboBox { Width = 230, SelectedIndex = 2 };
-            foreach (string name in new[] { "Spotter gauche", "Spotter droite", "Drapeau jaune", "Drapeau bleu", "Drapeau vert", "Drapeau blanc", "ABS actif", "TC actif", "Blocage des roues" })
+            foreach (string name in new[] { "Spotter gauche", "Spotter droite", "Drapeau jaune", "Drapeau bleu", "Drapeau vert", "Drapeau blanc", "ABS actif", "TC actif", "Blocage des roues", "In pit" })
                 telemetryTestEffect.Items.Add(name);
             telemetryTest.Children.Add(telemetryTestEffect);
             telemetryTest.Children.Add(Button("Tester l'effet · 3 s", TestTelemetry));
@@ -206,6 +208,7 @@ namespace DIYAmbient.Plugin
             telemetrySpotter.Click += (s, e) => Changed(); telemetryYellow.Click += (s, e) => Changed();
             telemetryBlue.Click += (s, e) => Changed(); telemetryGreen.Click += (s, e) => Changed();
             telemetryWhite.Click += (s, e) => Changed();
+            telemetryInPit.Click += (s, e) => Changed();
             spotterColor.SelectionChanged += (s, e) => Changed();
             telemetryAbs.Click += (s, e) => Changed(); telemetryTc.Click += (s, e) => Changed();
             telemetryWheelLock.Click += (s, e) => Changed();
@@ -294,6 +297,8 @@ namespace DIYAmbient.Plugin
                 if (type == typeof(TabItem))
                 {
                     style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(16, 8, 16, 8)));
+                    style.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.Transparent));
+                    style.Setters.Add(new Setter(Control.ForegroundProperty, new SolidColorBrush(Color.FromRgb(190, 190, 190))));
                     var border = new FrameworkElementFactory(typeof(Border));
                     border.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = RelativeSource.TemplatedParent });
                     border.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = RelativeSource.TemplatedParent });
@@ -304,8 +309,9 @@ namespace DIYAmbient.Plugin
                     border.AppendChild(label);
                     style.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(TabItem)) { VisualTree = border }));
                     var selected = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
-                    selected.Setters.Add(new Setter(Control.BackgroundProperty, background));
-                    selected.Setters.Add(new Setter(Control.BorderBrushProperty, Brushes.SteelBlue));
+                    selected.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(47, 61, 72))));
+                    selected.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+                    selected.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(75, 190, 255))));
                     style.Triggers.Add(selected);
                 }
                 Resources[type] = style;
@@ -320,47 +326,40 @@ namespace DIYAmbient.Plugin
         {
             var content = root;
             content.Children.Add(new TextBlock { Text = "Firmware Adalight / FastLED", FontSize = 20 });
-            content.Children.Add(Note("Base : ton firmware Adalight_WS2812 actuel, modifié pour l'extinction automatique. Dépôt GitHub privé : realisticsimcockpit/DIY-Ambient. GitHub CLI doit être connecté à un compte autorisé (gh auth login)."));
-            content.Children.Add(Note("EVO : démarrage au noir, extinction après 1 seconde sans trame complète. 60 LED WS2812, DATA D6, 115200 bauds. Le choix 3 ou 5 bandes reste géré par le plugin."));
-            content.Children.Add(Note("Carte indiquée : Nano. Vérifier ATmega328P et le bootloader ; les variantes WAVGAT ne sont pas toutes compatibles. Aucun flash automatique."));
-            var board = new ComboBox { Width = 400, HorizontalAlignment = HorizontalAlignment.Left, SelectedIndex = -1 };
+            content.Children.Add(Note("Firmware testé sur Arduino Nano ATmega328P (bootloader standard). 60 LED WS2812, DATA D6, 115200 bauds."));
+            var firstStep = new WrapPanel(); content.Children.Add(firstStep);
+            var board = new ComboBox { Width = 400, HorizontalAlignment = HorizontalAlignment.Left };
             foreach (string name in FirmwareFlasher.Boards) board.Items.Add(name);
-            content.Children.Add(Note("Modèle / bootloader (choix obligatoire pour compiler ou flasher)"));
+            board.SelectedIndex = 1;
+            content.Children.Add(Note("2. Vérifier la carte et le port dans l'onglet Installation"));
             content.Children.Add(board);
             var statusText = Note("Aucune opération firmware en cours.");
             FirmwareSource githubSource = null;
-            var sourceText = Note("Source embarquée disponible pour compiler hors ligne. Pour flasher : charger d'abord le firmware depuis GitHub.");
+            var sourceText = Note("Source à charger depuis GitHub avant le flash.");
             content.Children.Add(sourceText);
             var detected = Note("");
             content.Loaded += (s, e) => { if (plugin.Engine != null) detected.Text = plugin.Engine.FirmwareStatus; };
             content.Children.Add(detected);
-            var confirmed = new CheckBox { Content = "J'ai vérifié la carte, le bootloader et DATA D6 ; autoriser le bouton de flash", Margin = new Thickness(0, 8, 0, 8), IsChecked = false };
+            var confirmed = new CheckBox { Content = "J'ai vérifié la carte, le port COM et DATA D6", Margin = new Thickness(0, 8, 0, 8), IsChecked = false };
             content.Children.Add(confirmed);
             var buttons = new WrapPanel(); content.Children.Add(buttons); content.Children.Add(statusText);
             Action<string> report = message => Dispatcher.BeginInvoke(new Action(() => statusText.Text = message));
-            var prepare = new Button { Content = "Préparer les outils (Internet)", Margin = new Thickness(0, 4, 10, 4), Padding = new Thickness(12, 6, 12, 6) };
-            var download = new Button { Content = "Charger depuis GitHub", Margin = prepare.Margin, Padding = prepare.Padding };
-            var compile = new Button { Content = "Compiler sans flasher", Margin = prepare.Margin, Padding = prepare.Padding };
-            var flash = new Button { Content = "Flasher la carte…", Margin = prepare.Margin, Padding = prepare.Padding, IsEnabled = false };
-            buttons.Children.Add(prepare); buttons.Children.Add(download); buttons.Children.Add(compile); buttons.Children.Add(flash);
+            var prepare = new Button { Content = "1. Préparer et charger le firmware", Margin = new Thickness(0, 4, 10, 4), Padding = new Thickness(12, 6, 12, 6) };
+            var compile = new Button { Content = "Compiler sans flasher (facultatif)", Margin = prepare.Margin, Padding = prepare.Padding };
+            var flash = new Button { Content = "3. Flasher la carte…", Margin = prepare.Margin, Padding = prepare.Padding, IsEnabled = false };
+            firstStep.Children.Add(prepare); firstStep.Children.Add(compile); buttons.Children.Add(flash);
             confirmed.Click += (s, e) => flash.IsEnabled = confirmed.IsChecked == true && board.SelectedIndex >= 0 && githubSource != null;
-            board.SelectionChanged += (s, e) => { confirmed.IsChecked = false; flash.IsEnabled = false; };
-            download.Click += async (s, e) =>
-            {
-                IsEnabled = false; githubSource = null; confirmed.IsChecked = false; flash.IsEnabled = false;
-                sourceText.Text = "Chargement du firmware GitHub…";
-                try
-                {
-                    githubSource = await Task.Run(() => FirmwareFlasher.DownloadGitHub(report));
-                    sourceText.Text = "Source GitHub : main / " + githubSource.Sha.Substring(0, 12) + " — 60 LED, D6, 115200 bauds";
-                }
-                catch (Exception ex) { sourceText.Text = "Téléchargement non effectué. Source embarquée : compilation seulement."; statusText.Text = ex.Message; }
-                finally { IsEnabled = true; }
-            };
+            board.SelectionChanged += (s, e) => flash.IsEnabled = confirmed.IsChecked == true && board.SelectedIndex >= 0 && githubSource != null;
             prepare.Click += async (s, e) =>
             {
-                IsEnabled = false; statusText.Text = "Préparation des outils… Aucun accès au port COM.";
-                try { await Task.Run(() => FirmwareFlasher.Prepare(report)); }
+                IsEnabled = false; statusText.Text = "Préparation des outils et chargement du firmware…";
+                try
+                {
+                    await Task.Run(() => FirmwareFlasher.Prepare(report));
+                    githubSource = await Task.Run(() => FirmwareFlasher.DownloadGitHub(report));
+                    sourceText.Text = "Source GitHub : main / " + githubSource.Sha.Substring(0, 12) + " — 60 LED, D6, 115200 bauds";
+                    flash.IsEnabled = confirmed.IsChecked == true && board.SelectedIndex >= 0;
+                }
                 catch (Exception ex) { statusText.Text = ex.Message; }
                 finally { IsEnabled = true; }
             };
@@ -392,7 +391,7 @@ namespace DIYAmbient.Plugin
                     if (restore && plugin.Engine != null) plugin.SetOutputEnabled(true);
                 }
                 catch (Exception ex) { statusText.Text = "Échec — éclairage laissé désactivé. " + ex.Message; }
-                finally { IsEnabled = true; confirmed.IsChecked = false; flash.IsEnabled = false; Refresh(); }
+                finally { IsEnabled = true; flash.IsEnabled = confirmed.IsChecked == true && board.SelectedIndex >= 0 && githubSource != null; Refresh(); }
             };
         }
         private static CheckBox TelemetryChoice(string text, Panel parent)
@@ -455,6 +454,7 @@ namespace DIYAmbient.Plugin
             telemetrySpotter.IsChecked = s.TelemetrySpotterEnabled; telemetryYellow.IsChecked = s.TelemetryYellowEnabled;
             telemetryBlue.IsChecked = s.TelemetryBlueEnabled; telemetryGreen.IsChecked = s.TelemetryGreenEnabled;
             telemetryWhite.IsChecked = s.TelemetryWhiteEnabled;
+            telemetryInPit.IsChecked = s.TelemetryInPitEnabled;
             spotterColor.SelectedIndex = (int)s.SpotterColor;
             telemetryAbs.IsChecked = s.TelemetryAbsEnabled; telemetryTc.IsChecked = s.TelemetryTcEnabled;
             telemetryWheelLock.IsChecked = s.TelemetryWheelLockEnabled;
@@ -503,6 +503,7 @@ namespace DIYAmbient.Plugin
                 s.TelemetryBlueEnabled = telemetryBlue.IsChecked == true;
                 s.TelemetryGreenEnabled = telemetryGreen.IsChecked == true;
                 s.TelemetryWhiteEnabled = telemetryWhite.IsChecked == true;
+                s.TelemetryInPitEnabled = telemetryInPit.IsChecked == true;
                 s.TelemetryAbsEnabled = telemetryAbs.IsChecked == true; s.TelemetryTcEnabled = telemetryTc.IsChecked == true;
                 s.TelemetryWheelLockEnabled = telemetryWheelLock.IsChecked == true;
                 s.TelemetryEffectsInitialized = true;
@@ -535,6 +536,7 @@ namespace DIYAmbient.Plugin
                 telemetrySpotter.IsChecked != canonical.TelemetrySpotterEnabled || telemetryYellow.IsChecked != canonical.TelemetryYellowEnabled ||
                 telemetryBlue.IsChecked != canonical.TelemetryBlueEnabled || telemetryGreen.IsChecked != canonical.TelemetryGreenEnabled ||
                 telemetryWhite.IsChecked != canonical.TelemetryWhiteEnabled ||
+                telemetryInPit.IsChecked != canonical.TelemetryInPitEnabled ||
                 spotterColor.SelectedIndex != (int)canonical.SpotterColor ||
                 telemetryAbs.IsChecked != canonical.TelemetryAbsEnabled || telemetryTc.IsChecked != canonical.TelemetryTcEnabled ||
                 telemetryWheelLock.IsChecked != canonical.TelemetryWheelLockEnabled ||

@@ -69,6 +69,7 @@ namespace DIYAmbient.Core
         [DataMember(IsRequired = false)] public bool TelemetryBlueEnabled;
         [DataMember(IsRequired = false)] public bool TelemetryGreenEnabled;
         [DataMember(IsRequired = false)] public bool TelemetryWhiteEnabled;
+        [DataMember(IsRequired = false)] public bool TelemetryInPitEnabled;
         [DataMember(IsRequired = false)] public bool TelemetryBlackEnabled;
         [DataMember(IsRequired = false)] public bool TelemetryOrangeEnabled;
         [DataMember(IsRequired = false)] public bool TelemetryCheckeredEnabled;

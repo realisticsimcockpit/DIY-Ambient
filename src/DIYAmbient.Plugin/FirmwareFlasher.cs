@@ -39,11 +39,15 @@ namespace DIYAmbient.Plugin
             FirmwareSource source = null;
             Exclusive(() =>
             {
-                string gh = Path.Combine(Environment.GetEnvironmentVariable("ProgramW6432") ?? Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "GitHub CLI", "gh.exe");
-                if (!File.Exists(gh)) throw new FileNotFoundException("Le dépôt est privé : installer GitHub CLI et se connecter avec gh auth login avant de télécharger le firmware.");
                 Directory.CreateDirectory(Folder);
                 report("Récupération du firmware depuis realisticsimcockpit/DIY-Ambient (main)…");
-                string json = RunProcess(gh, "api repos/realisticsimcockpit/DIY-Ambient/contents/firmware/Adalight_WS2812/Adalight_WS2812.ino?ref=main", 60000, report, false);
+                string json;
+                using (var client = new WebClient())
+                {
+                    client.Headers[HttpRequestHeader.UserAgent] = "DIY-Ambient-EVO";
+                    client.Headers[HttpRequestHeader.Accept] = "application/vnd.github+json";
+                    json = client.DownloadString("https://api.github.com/repos/realisticsimcockpit/DIY-Ambient/contents/firmware/Adalight_WS2812/Adalight_WS2812.ino?ref=main");
+                }
                 GitHubFirmwareFile file;
                 using (var input = new MemoryStream(Encoding.UTF8.GetBytes(json)))
                     file = (GitHubFirmwareFile)new DataContractJsonSerializer(typeof(GitHubFirmwareFile)).ReadObject(input);
@@ -77,6 +81,13 @@ namespace DIYAmbient.Plugin
             Exclusive(() =>
             {
                 Directory.CreateDirectory(Folder);
+                string avr = Path.Combine(Folder, "data", "packages", "arduino", "hardware", "avr", "1.8.6");
+                string fastLed = Path.Combine(Folder, "user", "libraries", "FastLED", "library.properties");
+                if (File.Exists(Cli) && File.Exists(Path.Combine(avr, "boards.txt")) &&
+                    File.Exists(Path.Combine(avr, "platform.txt")) && File.Exists(fastLed) &&
+                    File.Exists(Path.Combine(Folder, "user", "libraries", "FastLED", "src", "FastLED.h")) &&
+                    Regex.IsMatch(File.ReadAllText(fastLed), @"(?m)^version=3\.9\.15\s*$"))
+                { report("Outils Arduino et FastLED déjà prêts."); return; }
                 if (!File.Exists(Cli))
                 {
                     report("Téléchargement Arduino CLI 1.5.1 depuis arduino.cc…");
