@@ -76,7 +76,7 @@ if ($Install) {
         if (Get-Process -Name 'SimHubWPF', 'SimHub' -ErrorAction SilentlyContinue) { throw 'SimHub vient de demarrer : installation annulee.' }
         Move-Item -LiteralPath $pending -Destination $destination -Force
     } finally { Remove-Item -LiteralPath $pending -Force -ErrorAction SilentlyContinue }
-    Write-Host 'Plugin copie. Relancer SimHub. Premiere utilisation : OFF. Aucun firmware modifie.'
+    Write-Host 'Plugin copie. Relancer SimHub. Aucun firmware modifie.'
 } else {
     Write-Host 'Aucune installation automatique. Copier uniquement cette DLL dans SimHub ferme, ou utiliser -Install.'
 }

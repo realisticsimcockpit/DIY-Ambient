@@ -50,7 +50,7 @@ namespace DIYAmbient.Plugin
             Storage.Save(settings);
             StartupWarning = warning;
             normalSettings = settings.Clone();
-            engine = new AmbientEngine(settings); // Always OFF at host startup / game reinitialization.
+            engine = new AmbientEngine(settings); // Restore the saved lighting state after initialization.
             if (settings.StartEnabled)
             {
                 try { engine.SetEnabled(true); }
